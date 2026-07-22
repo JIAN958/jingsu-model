@@ -1,0 +1,3075 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="title.page">AI Studio · 图像 & 视频生成</title>
+<style>
+:root {
+  /* Background layers */
+  --bg-base:   #0c0c0f;
+  --bg-elev-1: #15151a;
+  --bg-elev-2: #1d1d24;
+  --bg-hover:  #24242d;
+
+  /* Borders */
+  --border:        rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.10);
+  --border-focus:  rgba(167,139,250,0.45);
+
+  /* Foreground */
+  --fg:       #ededf0;
+  --fg-muted: #a1a1ad;
+  --fg-faint: #6b6b78;
+  --fg-dim:   #4a4a55;
+
+  /* Accent (soft violet) */
+  --accent:       #a78bfa;
+  --accent-hover: #b89dfb;
+  --accent-soft:  rgba(167,139,250,0.10);
+  --accent-glow:  rgba(167,139,250,0.18);
+
+  /* Status */
+  --green: #4ade80;
+  --red:   #f87171;
+  --amber: #fbbf24;
+
+  /* Easing */
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family:
+    'Inter', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei',
+    'Segoe UI', system-ui, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg-base);
+  color: var(--fg);
+  display: grid;
+  grid-template-rows: 52px 1fr;
+  grid-template-columns: 360px 1fr;
+  grid-template-areas:
+    "topbar topbar"
+    "sidebar main";
+  height: 100vh;
+}
+
+/* ─── Topbar ─── */
+.topbar {
+  grid-area: topbar;
+  background: var(--bg-elev-1);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 14px;
+}
+.topbar-logo {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--fg);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.logo-dot {
+  width: 8px; height: 8px; border-radius: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-elev-2);
+  border-radius: 8px;
+  padding: 3px;
+}
+.tab {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  transition: background .15s, color .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  background: var(--bg-elev-1);
+  color: var(--fg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.tab svg { opacity: .8; }
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid rgba(167,139,250,0.2);
+  font-weight: 500;
+}
+.icon-btn {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+.icon-btn .kbd {
+  font-size: 10px;
+  color: var(--fg-faint);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+.icon-btn .cnt {
+  font-size: 10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1a1a24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+.icon-btn .cnt.zero { background: var(--bg-hover); color: var(--fg-faint); }
+
+/* ─── Sidebar ─── */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--bg-elev-1);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-hover) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar { width: 5px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
+.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+.sidebar-footer {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev-1);
+}
+
+/* ─── Group cards ─── */
+.group-card {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.group-card:last-child { margin-bottom: 0; }
+.group-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ─── Region (endpoint) toggle ─── */
+.region-toggle {
+  display: flex;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  margin-bottom: 8px;
+}
+.region-opt {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s var(--ease-out), color .15s var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.region-opt:hover:not(.active) { color: var(--fg); background: var(--bg-hover); }
+.region-opt.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: 0 0 0 1px var(--border-focus) inset;
+}
+.region-hint {
+  font-size: 10.5px;
+  color: var(--fg-faint);
+  margin-bottom: 12px;
+  line-height: 1.45;
+  padding: 0 2px;
+}
+
+/* ─── Form ─── */
+.field { margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+.field-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.opt {
+  font-size: 10px;
+  color: var(--fg-faint);
+  background: rgba(255,255,255,0.04);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 400;
+}
+
+input, textarea, select {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--fg);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color .15s, box-shadow .15s;
+  outline: none;
+}
+input:hover, textarea:hover, select:hover {
+  border-color: var(--border-strong);
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+textarea {
+  min-height: 84px;
+  resize: vertical;
+  line-height: 1.55;
+}
+select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236b6b78' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  padding-right: 30px;
+}
+select option { background: var(--bg-elev-1); color: var(--fg); padding: 6px 8px; }
+input::placeholder, textarea::placeholder { color: var(--fg-dim); }
+input[type=password] { letter-spacing: 1.5px; color: var(--fg-muted); }
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+/* ─── Upload zone ─── */
+.upload-zone {
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--fg-faint);
+  font-size: 12px;
+  background: var(--bg-elev-1);
+  transition: border-color .15s, background .15s, color .15s;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.upload-thumb {
+  position: relative;
+  margin-top: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.upload-thumb img {
+  width: 100%;
+  max-height: 130px;
+  object-fit: cover;
+  display: block;
+}
+.thumb-rm {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+  padding: 0;
+}
+.thumb-rm:hover { background: var(--red); border-color: var(--red); }
+
+/* ─── Reference grid (4-slot) ─── */
+.ref-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.ref-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-elev-1);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  min-height: 112px;
+}
+.ref-tile:hover, .ref-tile.drag-over {
+  border-color: var(--ref-color, var(--accent));
+  background: var(--bg-elev-2);
+}
+.ref-tile.has-image {
+  border-style: solid;
+  cursor: default;
+}
+.ref-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  letter-spacing: 0.1px;
+  z-index: 2;
+}
+.ref-tile.has-image .ref-tile-head {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent);
+  color: #fff;
+  backdrop-filter: blur(2px);
+}
+.ref-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ref-color, var(--fg-faint));
+  box-shadow: 0 0 6px var(--ref-color, transparent);
+  flex-shrink: 0;
+}
+.ref-tile-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-faint);
+  font-size: 11px;
+  padding: 0 8px 8px;
+  text-align: center;
+}
+.ref-tile.has-image .ref-tile-body {
+  padding: 0;
+}
+.ref-tile img.ref-thumb {
+  width: 100%;
+  height: 100%;
+  min-height: 112px;
+  object-fit: cover;
+  display: block;
+}
+.ref-rm {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 3;
+  transition: background .15s;
+}
+.ref-rm:hover { background: var(--red); border-color: var(--red); }
+.ref-tile.has-image .ref-rm { display: flex; }
+
+/* ─── Buttons ─── */
+.btn-primary {
+  width: 100%;
+  padding: 11px;
+  border-radius: 9px;
+  border: 0;
+  background: var(--accent);
+  color: #15151a;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background .15s, transform .08s, box-shadow .15s;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.3);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 12px var(--accent-glow);
+}
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.btn-primary svg { color: #15151a; }
+
+.btn-ghost {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: var(--bg-elev-2);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+.btn-ghost.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+/* ─── Status bar ─── */
+.status-bar {
+  font-size: 12px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: none;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.status-bar.show { display: flex; align-items: center; gap: 6px; }
+.status-bar.info {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid rgba(167,139,250,0.18);
+}
+.status-bar.error {
+  background: rgba(248,113,113,0.08);
+  color: var(--red);
+  border: 1px solid rgba(248,113,113,0.2);
+}
+.status-bar.success {
+  background: rgba(74,222,128,0.08);
+  color: var(--green);
+  border: 1px solid rgba(74,222,128,0.2);
+}
+
+/* ─── Main / Preview ─── */
+.main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  overflow: hidden;
+}
+.preview-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+/* ─── Gallery ─── */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  width: 100%;
+}
+.gallery-item {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  transition: border-color .15s;
+}
+.gallery-item:hover { border-color: var(--border-strong); }
+.gallery-item img {
+  width: 100%;
+  display: block;
+  cursor: zoom-in;
+  transition: opacity .2s;
+}
+.gallery-item:hover img { opacity: 0.95; }
+.gal-dl {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity .2s, background .15s, transform .12s;
+  font-family: inherit;
+}
+.gallery-item:hover .gal-dl { opacity: 1; }
+.gal-dl:hover { background: var(--accent); color: #15151a; border-color: var(--accent); transform: scale(1.04); }
+
+.split-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .2s, background .15s, transform .12s;
+  font-family: inherit;
+}
+.gallery-item:hover .split-btn { opacity: 1; }
+.split-btn:hover { background: var(--accent-soft); border-color: var(--border-focus); transform: scale(1.04); }
+.split-menu {
+  position: absolute;
+  top: 36px;
+  right: 8px;
+  background: rgba(15,15,20,0.96);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 4px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+  min-width: 80px;
+}
+.split-menu.show { display: flex; }
+.split-menu button {
+  background: transparent; border: none; color: var(--fg);
+  padding: 6px 14px; border-radius: 5px; cursor: pointer;
+  font-size: 12px; font-family: inherit; text-align: left; white-space: nowrap;
+}
+.split-menu button:hover { background: var(--accent); color: #15151a; }
+
+/* ─── Split panel modal ─── */
+.split-panel {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.72); backdrop-filter: blur(4px);
+  z-index: 200; display: flex; align-items: center; justify-content: center;
+}
+.split-panel-inner {
+  background: var(--bg-elev-1); border: 1px solid var(--border-strong); border-radius: 14px;
+  width: 920px; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.split-panel-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.split-panel-head h3 { margin: 0; font-size: 14px; font-weight: 600; flex: 1; }
+.split-panel-body {
+  display: grid; grid-template-columns: 190px 1fr; flex: 1; overflow: hidden; min-height: 0;
+}
+.split-left { border-right: 1px solid var(--border); overflow-y: auto; padding: 10px; }
+.split-right { overflow-y: auto; padding: 14px; }
+.split-src-label { font-size: 11px; color: var(--fg-faint); letter-spacing: .5px; margin: 8px 0 5px; text-transform: uppercase; }
+.split-thumb {
+  width: 100%; border-radius: 6px; display: block; margin-bottom: 6px; cursor: pointer;
+  border: 2px solid transparent; transition: border-color .15s;
+}
+.split-thumb:hover { border-color: var(--border-focus); }
+.split-thumb.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.split-placeholder { color: var(--fg-faint); font-size: 12px; text-align: center; padding: 24px 0; }
+.split-no-src { color: var(--fg-faint); font-size: 12px; text-align: center; padding: 20px; }
+.split-result-grid { display: grid; gap: 8px; margin-top: 12px; }
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  cursor: zoom-out;
+}
+.lightbox img {
+  max-width: 92vw;
+  max-height: 92vh;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+/* ─── Video ─── */
+video#videoResult {
+  width: 100%;
+  max-height: calc(100vh - 200px);
+  border-radius: 12px;
+  display: none;
+  box-shadow: 0 16px 50px rgba(0,0,0,0.5);
+  border: 1px solid var(--border);
+}
+
+/* ─── Placeholder ─── */
+.placeholder {
+  text-align: center;
+  color: var(--fg-faint);
+}
+.placeholder-icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 14px;
+  border-radius: 16px;
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.placeholder p {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+.placeholder span {
+  font-size: 12px;
+  color: var(--fg-faint);
+  margin-top: 4px;
+  display: block;
+}
+
+.result-actions { display: none; gap: 8px; }
+
+/* ─── Logs drawer ─── */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(2px);
+  z-index: 900;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s var(--ease-out);
+}
+.drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 420px;
+  max-width: 92vw;
+  background: var(--bg-elev-1);
+  border-left: 1px solid var(--border);
+  box-shadow: -20px 0 50px rgba(0,0,0,0.4);
+  z-index: 950;
+  transform: translateX(100%);
+  transition: transform .28s var(--ease-out);
+  display: flex;
+  flex-direction: column;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-head {
+  height: 52px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.drawer-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fg);
+  flex: 1;
+  letter-spacing: -0.1px;
+}
+.drawer-cnt {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-elev-2);
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+.drawer-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: transparent;
+  border: 0;
+  color: var(--fg-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, color .15s;
+}
+.drawer-close:hover { background: var(--bg-hover); color: var(--fg); }
+
+.log-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-hover) transparent;
+}
+.log-list::-webkit-scrollbar { width: 5px; }
+.log-list::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
+
+.log-empty {
+  font-size: 12.5px;
+  color: var(--fg-faint);
+  text-align: center;
+  padding: 50px 0;
+}
+
+.log-entry {
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  transition: border-color .15s;
+}
+.log-entry:hover { border-color: var(--border-strong); }
+.log-head {
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  user-select: none;
+  transition: background .12s;
+}
+.log-head:hover { background: var(--bg-hover); }
+.log-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.log-dot.img { background: #60a5fa; box-shadow: 0 0 8px rgba(96,165,250,0.4); }
+.log-dot.vid { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+.log-dot.ok  { background: var(--green); box-shadow: 0 0 8px rgba(74,222,128,0.4); }
+.log-dot.err { background: var(--red);   box-shadow: 0 0 8px rgba(248,113,113,0.4); }
+
+.log-label {
+  font-size: 12px;
+  font-weight: 600;
+  flex: 1;
+  color: var(--fg);
+  letter-spacing: -0.1px;
+}
+.log-time {
+  font-size: 10.5px;
+  color: var(--fg-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+.log-body {
+  display: none;
+  border-top: 1px solid var(--border);
+}
+.log-body.open { display: block; }
+.log-sec { padding: 9px 12px; }
+.log-sec + .log-sec { border-top: 1px solid var(--border); }
+.log-sec-name {
+  font-size: 9.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+.log-pre {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--fg-muted);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.65;
+}
+
+.drawer-foot {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.btn-clear {
+  font-size: 11.5px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn-clear:hover {
+  background: var(--bg-hover);
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+
+/* ─── Spinner ─── */
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Favorite button (on gallery + video) ─── */
+.fav-btn {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity .2s, background .15s, color .15s, border-color .15s, transform .12s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gallery-item:hover .fav-btn { opacity: 1; }
+.fav-btn:hover:not(.saved):not(.loading) {
+  background: var(--amber);
+  color: #15151a;
+  border-color: var(--amber);
+  transform: scale(1.04);
+}
+.fav-btn.saved {
+  opacity: 1;
+  background: var(--amber);
+  color: #15151a;
+  border-color: var(--amber);
+  cursor: default;
+}
+.fav-btn.loading { opacity: 1; pointer-events: none; }
+
+/* video result fav button — inline in #resultActions */
+.btn-ghost.fav-vid.saved {
+  background: var(--amber);
+  color: #15151a;
+  border-color: var(--amber);
+}
+
+/* ─── History panel ─── */
+.history-panel {
+  border-top: 1px solid var(--border);
+  background: var(--bg-elev-1);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  max-height: 50vh;
+  transition: max-height .25s var(--ease-out);
+}
+.history-panel.collapsed { max-height: 44px; }
+
+.history-head {
+  height: 44px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  border-bottom: 1px solid transparent;
+  transition: border-color .15s;
+}
+.history-panel:not(.collapsed) .history-head { border-bottom-color: var(--border); }
+.history-head:hover { background: var(--bg-elev-2); }
+.history-chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--fg-faint);
+  transition: transform .2s var(--ease-out);
+  flex-shrink: 0;
+}
+.history-panel:not(.collapsed) .history-chevron { transform: rotate(90deg); }
+.history-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+  letter-spacing: -0.1px;
+}
+.history-stats {
+  font-size: 11.5px;
+  color: var(--fg-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  margin-left: auto;
+  margin-right: 4px;
+}
+.history-clear {
+  font-size: 11.5px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.history-clear:hover {
+  background: rgba(248,113,113,0.1);
+  color: var(--red);
+  border-color: rgba(248,113,113,0.3);
+}
+
+.history-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-hover) transparent;
+}
+.history-body::-webkit-scrollbar { width: 5px; }
+.history-body::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
+.history-panel.collapsed .history-body { display: none; }
+
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.history-empty {
+  font-size: 12.5px;
+  color: var(--fg-faint);
+  text-align: center;
+  padding: 36px 0;
+}
+
+.history-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color .15s, transform .12s;
+}
+.history-item:hover {
+  border-color: var(--border-strong);
+}
+.history-item:hover img { transform: scale(1.04); }
+.history-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .25s var(--ease-out);
+}
+.history-item .vid-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+.history-item .item-rm {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.1);
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.history-item:hover .item-rm { display: flex; }
+.history-item .item-rm:hover { background: var(--red); border-color: var(--red); }
+.history-item .item-meta {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 16px 8px 6px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+  font-size: 10px;
+  color: var(--fg-muted);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+/* ─── Confirm dialog ─── */
+.confirm-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+.confirm-box {
+  background: var(--bg-elev-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 20px;
+  width: 320px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.confirm-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 6px;
+}
+.confirm-msg {
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.confirm-actions .btn-ghost.danger {
+  background: rgba(248,113,113,0.1);
+  color: var(--red);
+  border-color: rgba(248,113,113,0.3);
+}
+.confirm-actions .btn-ghost.danger:hover {
+  background: var(--red);
+  color: #15151a;
+  border-color: var(--red);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1100px) {
+  body { grid-template-columns: 320px 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <span class="topbar-logo"><span class="logo-dot"></span>AI Studio</span>
+  <div class="tab-bar">
+    <button class="tab active" id="tab-img" onclick="switchMode('img')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <span data-i18n="tab.image">图像生成</span>
+    </button>
+    <button class="tab" id="tab-vid" onclick="switchMode('vid')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+      <span data-i18n="tab.video">视频生成</span>
+    </button>
+    <button class="tab" onclick="openSplitPanel()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="9" height="9" rx="1"/><rect x="12" y="3" width="9" height="9" rx="1"/><rect x="3" y="12" width="9" height="9" rx="1"/><rect x="12" y="12" width="9" height="9" rx="1"/></svg>
+      <span>切分工具</span>
+    </button>
+  </div>
+  <div class="topbar-right">
+    <span class="badge" id="modeBadge">GPT Image 2</span>
+    <button class="icon-btn" id="langBtn" onclick="toggleLang()" title="Switch language / 切换语言">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      <span id="langBtnText">EN</span>
+    </button>
+    <button class="icon-btn" id="logsBtn" onclick="toggleLogs()" data-i18n-title="topbar.logsTitle" title="请求日志">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      <span data-i18n="topbar.logs">日志</span>
+      <span class="cnt zero" id="logCnt">0</span>
+      <span class="kbd">⌘L</span>
+    </button>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-scroll">
+
+    <!-- ── Image mode sidebar ── -->
+    <div id="sidebar-img">
+      <div style="display:flex;gap:6px;padding:12px 12px 0">
+        <button class="btn-ghost active" id="modeGenBtn" onclick="switchImgSubMode('gen')">生成</button>
+        <button class="btn-ghost" id="modeEditBtn" onclick="switchImgSubMode('edit')">编辑</button>
+      </div>
+      <div class="group-card">
+        <div class="group-title" data-i18n="grp.api">接口</div>
+        <div class="region-toggle" role="tablist" aria-label="endpoint region">
+          <button type="button" class="region-opt active" data-region="cn" onclick="setRegion('img','cn')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+            <span data-i18n="region.cn">国内</span>
+          </button>
+          <button type="button" class="region-opt" data-region="us" onclick="setRegion('img','us')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+            <span data-i18n="region.us">海外</span>
+          </button>
+          <button type="button" class="region-opt" data-region="gemini" onclick="setRegion('img','gemini')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 1 0 10 10M12 2a10 10 0 0 1 8.5 5M12 2a10 10 0 0 0-8.5 5"/></svg>
+            <span data-i18n="region.gemini">Gemini</span>
+          </button>
+        </div>
+        <div class="region-hint" id="img-regionHint" data-i18n="region.hint.cn">中国大陆节点</div>
+        <div class="field"><div class="field-label" data-i18n="img.apiUrl">API 地址</div>
+          <input id="img-apiUrl" value=""></div>
+        <div class="field"><div class="field-label" data-i18n="img.apiKey">API Key</div>
+          <input id="img-apiKey" type="password" autocomplete="off" value="" placeholder="Bearer Token"></div>
+        <div class="field"><div class="field-label" data-i18n="img.model">模型</div>
+          <input id="img-model" list="imgModelList" value="gpt-image-2">
+          <datalist id="imgModelList">
+            <option value="gpt-image-2"><option value="gpt-image-1"><option value="dall-e-3"><option value="dall-e-2"><option value="flux-pro"><option value="flux-dev">
+            <option value="gemini-3-pro-image-preview"><option value="gemini-2.5-flash-image">
+          </datalist></div>
+      </div>
+
+      <div class="group-card">
+        <div class="group-title" data-i18n="grp.input">输入</div>
+        <div class="field"><div class="field-label">Prompt</div>
+          <textarea id="img-prompt" data-i18n-ph="img.promptPh" placeholder="描述想要生成的图片，例如：A serene Japanese garden at sunset...">a beautiful flower</textarea></div>
+        <div id="genOnlyFields">
+        <div class="field"><div class="field-label"><span data-i18n="img.variants">形态变体</span> <span class="opt" data-i18n="img.variantsOpt">可选 · ⏎ 每行一个（逗号不分割）</span></div>
+          <textarea id="img-variants" data-i18n-ph="img.variantsPh" placeholder="每行一个形态/姿态/场景（重要：换行分隔，逗号不会分割），例如：&#10;standing in a sunlit garden, full body&#10;running on a beach at sunset, dynamic pose&#10;sitting by a window reading, half body&#10;&#10;主 prompt 中用 {变体} 占位符可精确替换，否则自动追加到末尾。" style="min-height:96px;font-family:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;font-size:12px"></textarea>
+          <div style="font-size:10.5px;color:var(--accent);margin-top:6px;line-height:1.4;display:flex;align-items:flex-start;gap:5px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span data-i18n="img.variantsTip">每行算一个变体，逗号写在一行不会分割。每个变体按 Enter 换行。</span>
+          </div>
+        </div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11.5px;color:var(--fg-muted);flex-wrap:wrap">
+            <input type="checkbox" id="img-isolate" checked style="width:14px;height:14px;cursor:pointer;accent-color:var(--accent);margin:0">
+            <span data-i18n="img.isolate">单角色独立形态</span>
+            <span class="opt" data-i18n="img.isolateHint">强制单图单姿态 · 避免多宫格</span>
+          </label>
+        </div>
+        <div class="field"><div class="field-label"><span data-i18n="img.refTitle">参考图</span> <span class="opt" data-i18n="img.refOpt">可选 · 最多 4 类</span></div>
+          <div class="ref-grid" id="img-refGrid">
+            <div class="ref-tile" data-role="subject" style="--ref-color:#60a5fa">
+              <div class="ref-tile-head"><span class="ref-dot"></span><span data-i18n="ref.subject">内容参考</span></div>
+              <div class="ref-tile-body" data-i18n="ref.empty">+ 点击或拖拽</div>
+              <input type="file" accept="image/*" style="display:none">
+              <button class="ref-rm" type="button">×</button>
+            </div>
+            <div class="ref-tile" data-role="palette" style="--ref-color:#fbbf24">
+              <div class="ref-tile-head"><span class="ref-dot"></span><span data-i18n="ref.palette">色板参考</span></div>
+              <div class="ref-tile-body" data-i18n="ref.empty">+ 点击或拖拽</div>
+              <input type="file" accept="image/*" style="display:none">
+              <button class="ref-rm" type="button">×</button>
+            </div>
+          </div>
+        </div>
+        </div><!-- /genOnlyFields -->
+        <div id="editOnlyFields" style="display:none">
+          <div class="field"><div class="field-label">源图 <span class="opt">必填</span></div>
+            <div class="ref-tile" id="editSrcTile" style="--ref-color:#a78bfa">
+              <div class="ref-tile-head"><span class="ref-dot"></span><span>待编辑图片</span></div>
+              <div class="ref-tile-body" id="editSrcBody">+ 点击或拖拽</div>
+              <input type="file" accept="image/*" style="display:none" id="editSrcInput">
+              <button class="ref-rm" type="button" id="editSrcRm">×</button>
+            </div>
+          </div>
+          <div class="field"><div class="field-label">遮罩 <span class="opt">可选 · 透明区=编辑区</span></div>
+            <div class="ref-tile" id="editMaskTile" style="--ref-color:#6b7280">
+              <div class="ref-tile-head"><span class="ref-dot"></span><span>Mask 图</span></div>
+              <div class="ref-tile-body" id="editMaskBody">+ 点击或拖拽</div>
+              <input type="file" accept="image/*" style="display:none" id="editMaskInput">
+              <button class="ref-rm" type="button" id="editMaskRm">×</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group-card">
+        <div class="group-title" data-i18n="grp.params">参数</div>
+        <div class="field"><div class="field-label" data-i18n="img.size">尺寸</div>
+          <select id="img-size">
+            <option value="1024x1024">1024 × 1024 (1:1)</option>
+            <option value="1536x1024" data-i18n="img.size.3x2">1536 × 1024 (3:2 横)</option>
+            <option value="1024x1536" data-i18n="img.size.2x3">1024 × 1536 (2:3 竖)</option>
+            <option value="2048x2048">2048 × 2048 (1:1)</option>
+            <option value="2048x1152" data-i18n="img.size.16x9">2048 × 1152 (16:9 横)</option>
+            <option value="1152x2048" data-i18n="img.size.9x16">1152 × 2048 (9:16 竖)</option>
+            <option value="auto" data-i18n="img.size.auto">auto（自动）</option>
+          </select></div>
+        <div class="g3">
+          <div class="field" style="margin:0"><div class="field-label" data-i18n="img.quality">质量</div>
+            <select id="img-quality"><option value="low" data-i18n="img.quality.low">快速</option><option value="medium" data-i18n="img.quality.med">中等</option><option value="high" data-i18n="img.quality.high">高质量</option></select></div>
+          <div class="field" style="margin:0"><div class="field-label" data-i18n="img.format">格式</div>
+            <select id="img-format"><option>png</option><option>jpeg</option><option>webp</option></select></div>
+          <div class="field" style="margin:0"><div class="field-label" data-i18n="img.batch">每变体张数</div>
+            <select id="img-batch">
+              <option value="1" data-i18n="img.batch.n" data-i18n-arg="1">1 张</option><option value="2" data-i18n="img.batch.n" data-i18n-arg="2">2 张</option><option value="3" data-i18n="img.batch.n" data-i18n-arg="3">3 张</option>
+              <option value="4" data-i18n="img.batch.n" data-i18n-arg="4">4 张</option><option value="6" data-i18n="img.batch.n" data-i18n-arg="6">6 张</option><option value="8" data-i18n="img.batch.n" data-i18n-arg="8">8 张</option>
+            </select></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Video mode sidebar ── -->
+    <div id="sidebar-vid" style="display:none">
+      <div class="group-card">
+        <div class="group-title" data-i18n="grp.api">接口</div>
+        <div class="region-toggle" role="tablist" aria-label="endpoint region">
+          <button type="button" class="region-opt active" data-region="cn" onclick="setRegion('vid','cn')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+            <span data-i18n="region.cn">国内</span>
+          </button>
+          <button type="button" class="region-opt" data-region="us" onclick="setRegion('vid','us')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+            <span data-i18n="region.us">海外</span>
+          </button>
+        </div>
+        <div class="region-hint" id="vid-regionHint" data-i18n="region.hint.cn">中国大陆节点</div>
+        <div class="field"><div class="field-label" data-i18n="vid.submitUrl">提交地址</div>
+          <input id="vid-submitUrl" value=""></div>
+        <div class="field"><div class="field-label" data-i18n="vid.statusUrl">状态地址</div>
+          <input id="vid-statusUrl" value=""></div>
+        <div class="field"><div class="field-label" data-i18n="img.apiKey">API Key</div>
+          <input id="vid-apiKey" type="password" autocomplete="off" value="" placeholder="Bearer Token"></div>
+        <div class="field"><div class="field-label" data-i18n="img.model">模型</div>
+          <input id="vid-model" list="vidModelList" value="doubao-seedance-2-0-260128">
+          <datalist id="vidModelList"><option value="doubao-seedance-2-0-260128"></datalist></div>
+      </div>
+
+      <div class="group-card">
+        <div class="group-title" data-i18n="grp.input">输入</div>
+        <div class="field"><div class="field-label" data-i18n="vid.prompt">文本 Prompt</div>
+          <textarea id="vid-prompt" data-i18n-ph="vid.promptPh" placeholder="描述想要生成的视频，支持中英文，建议不超过 500 字"></textarea></div>
+        <div class="field"><div class="field-label"><span data-i18n="vid.firstFrame">首帧图片</span> <span class="opt" data-i18n="opt">可选</span></div>
+          <div class="upload-zone" id="vid-firstDrop" onclick="document.getElementById('vid-firstFile').click()">
+            <span data-i18n="upload.hint">点击或拖拽上传</span>
+            <input id="vid-firstFile" type="file" accept="image/*" style="display:none" onchange="vidHandleImg('first',this.files[0])">
+          </div>
+          <div class="upload-thumb" id="vid-firstThumb" style="display:none">
+            <img id="vid-firstImg"><button class="thumb-rm" onclick="vidClearImg('first')">×</button>
+          </div>
+        </div>
+        <div class="field"><div class="field-label"><span data-i18n="vid.lastFrame">尾帧图片</span> <span class="opt" data-i18n="opt">可选</span></div>
+          <div class="upload-zone" id="vid-lastDrop" onclick="document.getElementById('vid-lastFile').click()">
+            <span data-i18n="upload.hint">点击或拖拽上传</span>
+            <input id="vid-lastFile" type="file" accept="image/*" style="display:none" onchange="vidHandleImg('last',this.files[0])">
+          </div>
+          <div class="upload-thumb" id="vid-lastThumb" style="display:none">
+            <img id="vid-lastImg"><button class="thumb-rm" onclick="vidClearImg('last')">×</button>
+          </div>
+        </div>
+        <div class="field"><div class="field-label"><span data-i18n="vid.refVideo">参考视频 URL</span> <span class="opt" data-i18n="opt">可选</span></div>
+          <input id="vid-refVideo" type="url" placeholder="https://... (reference_video)"></div>
+        <div class="field"><div class="field-label"><span data-i18n="vid.refAudio">参考音频 URL</span> <span class="opt" data-i18n="opt">可选</span></div>
+          <input id="vid-refAudio" type="url" placeholder="https://... (reference_audio)"></div>
+      </div>
+
+      <div class="group-card">
+        <div class="group-title" data-i18n="grp.params">参数</div>
+        <div class="g2">
+          <div class="field" style="margin:0"><div class="field-label" data-i18n="vid.res">分辨率</div>
+            <select id="vid-res"><option value="720p">720p</option><option value="480p">480p</option><option value="1080p">1080p</option></select></div>
+          <div class="field" style="margin:0"><div class="field-label" data-i18n="vid.dur">时长</div>
+            <select id="vid-dur"><option value="5">5s</option><option value="4">4s</option><option value="8">8s</option><option value="10">10s</option><option value="15">15s</option></select></div>
+        </div>
+        <div class="field"><div class="field-label" data-i18n="vid.ratio">宽高比</div>
+          <select id="vid-ratio">
+            <option value="adaptive" data-i18n="vid.ratio.adaptive">adaptive（智能）</option>
+            <option value="16:9" data-i18n="vid.ratio.16x9">16:9 横屏</option><option value="9:16" data-i18n="vid.ratio.9x16">9:16 竖屏</option>
+            <option value="1:1">1:1</option><option value="4:3">4:3</option><option value="3:4">3:4</option><option value="21:9">21:9</option>
+          </select></div>
+        <div class="g2">
+          <div class="field" style="margin:0"><div class="field-label" data-i18n="vid.audio">生成音频</div>
+            <select id="vid-audio"><option value="false" data-i18n="vid.audio.no">无声</option><option value="true" data-i18n="vid.audio.yes">有声</option></select></div>
+          <div class="field" style="margin:0"><div class="field-label" data-i18n="vid.cam">固定镜头</div>
+            <select id="vid-cam"><option value="false" data-i18n="bool.no">否</option><option value="true" data-i18n="bool.yes">是</option></select></div>
+        </div>
+        <div class="field"><div class="field-label"><span data-i18n="vid.seed">随机种子</span> <span class="opt" data-i18n="opt">可选</span></div>
+          <input id="vid-seed" type="number" min="0" max="2147483647" placeholder="0 ~ 2147483647"></div>
+      </div>
+    </div>
+
+  </div>
+  <div class="sidebar-footer">
+    <button class="btn-primary" id="genBtn" onclick="handleGenerate()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <span id="genBtnText" data-i18n="btn.gen.image">生成图像</span>
+    </button>
+    <div class="status-bar" id="status"></div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="preview-area" id="previewArea">
+    <div class="placeholder" id="placeholder">
+      <div class="placeholder-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6b6b78" stroke-width="1.5">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <circle cx="8.5" cy="8.5" r="1.5" fill="#6b6b78" stroke="none"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </div>
+      <p id="placeholderText" data-i18n="placeholder.title">结果将显示在这里</p>
+      <span data-i18n="placeholder.sub">填写参数后点击生成</span>
+    </div>
+    <!-- Image results -->
+    <div class="gallery" id="gallery" style="display:none"></div>
+    <!-- Video result -->
+    <video id="videoResult" controls></video>
+    <!-- Actions -->
+    <div class="result-actions" id="resultActions">
+      <button class="btn-ghost" id="dlAllBtn" onclick="handleDownloadAll()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span data-i18n="btn.download">下载</span>
+      </button>
+      <button class="btn-ghost fav-vid" id="favVidBtn" onclick="favVideo()" style="display:none">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span data-i18n="fav.label">收藏</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- History panel -->
+  <div class="history-panel collapsed" id="historyPanel">
+    <div class="history-head" onclick="historyToggle()">
+      <svg class="history-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 6 15 12 9 18"/></svg>
+      <span class="history-title"><span data-i18n="history.title">历史收藏</span> <span id="historyCount">(0)</span></span>
+      <span class="history-stats" id="historyStats">0 B</span>
+      <button class="history-clear" id="historyClearBtn" onclick="event.stopPropagation(); historyClear()" data-i18n="btn.clear">清空</button>
+    </div>
+    <div class="history-body">
+      <div class="history-grid" id="historyGrid">
+        <div class="history-empty" data-i18n="history.empty">还没有收藏 · 生成结果后点 ☆ 保存</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Logs drawer -->
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="closeLogs()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <span class="drawer-title" data-i18n="drawer.title">请求日志</span>
+    <span class="drawer-cnt" id="drawerCnt">0</span>
+    <button class="drawer-close" onclick="closeLogs()" data-i18n-title="drawer.close" title="关闭 (Esc)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="log-list" id="logList">
+    <div class="log-empty" data-i18n="logs.empty">暂无日志</div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn-clear" onclick="clearLogs()" data-i18n="btn.clear">清空</button>
+  </div>
+</aside>
+
+<script>
+/* ─────────────────────────────────
+   I18N
+───────────────────────────────── */
+const I18N = {
+  zh: {
+    'title.page': 'AI Studio · 图像 & 视频生成',
+    'tab.image': '图像生成', 'tab.video': '视频生成',
+    'topbar.logs': '日志', 'topbar.logsTitle': '请求日志',
+    'grp.api': '接口', 'grp.input': '输入', 'grp.params': '参数',
+    'img.apiUrl': 'API 地址', 'img.apiKey': 'API Key', 'img.model': '模型',
+    'img.promptPh': '描述想要生成的图片，例如：A serene Japanese garden at sunset...',
+    'img.refTitle': '参考图', 'img.refOpt': '可选',
+    'ref.subject': '内容参考', 'ref.palette': '色板参考',
+    'ref.empty': '+ 点击或拖拽',
+    'img.size': '尺寸',
+    'img.size.3x2': '1536 × 1024 (3:2 横)', 'img.size.2x3': '1024 × 1536 (2:3 竖)',
+    'img.size.16x9': '2048 × 1152 (16:9 横)', 'img.size.9x16': '1152 × 2048 (9:16 竖)',
+    'img.size.auto': 'auto（自动）',
+    'img.quality': '质量', 'img.quality.low': '快速', 'img.quality.med': '中等', 'img.quality.high': '高质量',
+    'img.format': '格式', 'img.batch': '每变体张数', 'img.batch.n': '{n} 张',
+    'img.variants': '形态变体', 'img.variantsOpt': '可选 · ⏎ 每行一个（逗号不分割）',
+    'img.variantsPh': '每行一个形态/姿态/场景（重要：换行分隔，逗号不会分割），例如：\nstanding in a sunlit garden, full body\nrunning on a beach at sunset, dynamic pose\nsitting by a window reading, half body\n\n主 prompt 中用 {变体} 占位符可精确替换，否则自动追加到末尾。',
+    'img.variantsTip': '每行算一个变体，逗号写在一行不会分割。每个变体按 Enter 换行。',
+    'img.isolate': '单角色独立形态', 'img.isolateHint': '强制单图单姿态 · 避免多宫格',
+    'vid.submitUrl': '提交地址', 'vid.statusUrl': '状态地址',
+    'vid.prompt': '文本 Prompt',
+    'vid.promptPh': '描述想要生成的视频，支持中英文，建议不超过 500 字',
+    'vid.firstFrame': '首帧图片', 'vid.lastFrame': '尾帧图片',
+    'vid.refVideo': '参考视频 URL', 'vid.refAudio': '参考音频 URL',
+    'opt': '可选', 'upload.hint': '点击或拖拽上传',
+    'vid.res': '分辨率', 'vid.dur': '时长', 'vid.ratio': '宽高比',
+    'vid.ratio.adaptive': 'adaptive（智能）', 'vid.ratio.16x9': '16:9 横屏', 'vid.ratio.9x16': '9:16 竖屏',
+    'vid.audio': '生成音频', 'vid.audio.no': '无声', 'vid.audio.yes': '有声',
+    'vid.cam': '固定镜头', 'bool.no': '否', 'bool.yes': '是',
+    'vid.seed': '随机种子',
+    'btn.gen.image': '生成图像', 'btn.gen.video': '提交生成任务',
+    'btn.download': '下载', 'btn.downloadAll': '全部下载', 'btn.downloadVideo': '下载视频',
+    'btn.clear': '清空', 'btn.cancel': '取消', 'btn.confirm': '确认',
+    'fav.label': '收藏', 'fav.saving': '收藏中...', 'fav.saved': '已收藏',
+    'fav.imgLabel': '☆ 收藏', 'fav.imgSaved': '★ 已收藏',
+    'placeholder.title': '结果将显示在这里', 'placeholder.sub': '填写参数后点击生成',
+    'placeholder.image': '图像将显示在这里', 'placeholder.video': '视频将显示在这里',
+    'history.title': '历史收藏', 'history.empty': '还没有收藏 · 生成结果后点 ☆ 保存',
+    'drawer.title': '请求日志', 'drawer.close': '关闭 (Esc)', 'logs.empty': '暂无日志',
+    'confirm.clearTitle': '清空所有收藏？', 'confirm.clearMsg': '此操作不可撤销，将删除全部历史记录与本地文件。',
+    'status.fillAll': '请填写完整参数',
+    'status.generating': '正在并发生成 {n} 张...',
+    'status.done': '完成 {done}/{total} · 耗时 {sec}s',
+    'status.doneFail': '完成 {done}/{total} · 耗时 {sec}s · {failed} 张失败',
+    'status.allFail': '全部生成失败',
+    'status.fillKey': '请填写 API Key',
+    'status.fillModel': '请填写模型名称',
+    'status.fillPromptOrFirst': '请填写 Prompt 或上传首帧图片',
+    'status.submitting': '提交中...',
+    'status.polling': '轮询中 · {id}…',
+    'status.error': '错误：{msg}',
+    'status.noVideoUrl': '成功但未返回视频 URL',
+    'status.vidDone': '完成 · {sec}s',
+    'status.vidDoneDur': '完成 · {sec}s · 时长 {dur}s',
+    'status.fail': '失败：{msg}',
+    'status.pollingState': '{state} · {sec}s',
+    'status.favFailImg': '收藏失败：{msg}',
+    'status.favFailVid': '视频收藏失败（CORS 或网络问题）：{msg}',
+    'err.empty': '返回为空', 'err.unknownFmt': '未识别的返回格式', 'err.noTaskId': '未获取到 task_id',
+    'lang.toggle': 'EN',
+    'region.cn': '国内', 'region.us': '海外', 'region.gemini': 'Gemini',
+    'region.hint.cn': '中国大陆节点',
+    'region.hint.us': '美国洛杉矶节点 · 海外用户推荐，访问更快，数据不回国',
+    'region.hint.gemini': 'Google Gemini 原生图像生成 · gemini-3-pro-image-preview (Nano Banana Pro)',
+    'ref.subject.instr': 'Use as the primary subject and composition reference.',
+    'ref.style.instr': 'Apply this artistic style, brush, texture and color tone.',
+    'ref.character.instr': "Preserve this character's facial features, hairstyle and outfit.",
+    'ref.palette.instr': 'Constrain the output color palette to that of this image.'
+  },
+  en: {
+    'title.page': 'AI Studio · Image & Video',
+    'tab.image': 'Image', 'tab.video': 'Video',
+    'topbar.logs': 'Logs', 'topbar.logsTitle': 'Request logs',
+    'grp.api': 'API', 'grp.input': 'Input', 'grp.params': 'Parameters',
+    'img.apiUrl': 'API URL', 'img.apiKey': 'API Key', 'img.model': 'Model',
+    'img.promptPh': 'Describe the image you want, e.g. A serene Japanese garden at sunset...',
+    'img.refTitle': 'References', 'img.refOpt': 'optional · up to 4',
+    'ref.subject': 'Subject', 'ref.style': 'Style', 'ref.character': 'Character', 'ref.palette': 'Palette',
+    'ref.empty': '+ click or drop',
+    'img.size': 'Size',
+    'img.size.3x2': '1536 × 1024 (3:2 landscape)', 'img.size.2x3': '1024 × 1536 (2:3 portrait)',
+    'img.size.16x9': '2048 × 1152 (16:9 landscape)', 'img.size.9x16': '1152 × 2048 (9:16 portrait)',
+    'img.size.auto': 'auto',
+    'img.quality': 'Quality', 'img.quality.low': 'Fast', 'img.quality.med': 'Medium', 'img.quality.high': 'High',
+    'img.format': 'Format', 'img.batch': 'Per variant', 'img.batch.n': '{n}',
+    'img.variants': 'Variants', 'img.variantsOpt': 'optional · ⏎ one per line (comma not split)',
+    'img.variantsPh': 'One per line — newline separated. Commas in a line are NOT split. e.g.\nstanding in a sunlit garden, full body\nrunning on a beach at sunset, dynamic pose\nsitting by a window reading, half body\n\nUse {variant} placeholder in the main prompt for precise substitution; otherwise it appends to the end.',
+    'img.variantsTip': 'Each line = one variant. Commas in a single line are not split. Press Enter for a new variant.',
+    'img.isolate': 'Isolate single character', 'img.isolateHint': 'Force one pose per image · no sticker sheet',
+    'vid.submitUrl': 'Submit URL', 'vid.statusUrl': 'Status URL',
+    'vid.prompt': 'Text prompt',
+    'vid.promptPh': 'Describe the video — Chinese or English, up to ~500 chars',
+    'vid.firstFrame': 'First frame', 'vid.lastFrame': 'Last frame',
+    'vid.refVideo': 'Reference video URL', 'vid.refAudio': 'Reference audio URL',
+    'opt': 'optional', 'upload.hint': 'Click or drop to upload',
+    'vid.res': 'Resolution', 'vid.dur': 'Duration', 'vid.ratio': 'Aspect ratio',
+    'vid.ratio.adaptive': 'adaptive', 'vid.ratio.16x9': '16:9 landscape', 'vid.ratio.9x16': '9:16 portrait',
+    'vid.audio': 'Audio', 'vid.audio.no': 'Mute', 'vid.audio.yes': 'On',
+    'vid.cam': 'Fixed camera', 'bool.no': 'No', 'bool.yes': 'Yes',
+    'vid.seed': 'Random seed',
+    'btn.gen.image': 'Generate', 'btn.gen.video': 'Submit task',
+    'btn.download': 'Download', 'btn.downloadAll': 'Download all', 'btn.downloadVideo': 'Download video',
+    'btn.clear': 'Clear', 'btn.cancel': 'Cancel', 'btn.confirm': 'Confirm',
+    'fav.label': 'Save', 'fav.saving': 'Saving...', 'fav.saved': 'Saved',
+    'fav.imgLabel': '☆ Save', 'fav.imgSaved': '★ Saved',
+    'placeholder.title': 'Result will appear here', 'placeholder.sub': 'Fill in the form and click generate',
+    'placeholder.image': 'Image will appear here', 'placeholder.video': 'Video will appear here',
+    'history.title': 'History', 'history.empty': 'No saved items · click ☆ on a result to save it',
+    'drawer.title': 'Request logs', 'drawer.close': 'Close (Esc)', 'logs.empty': 'No logs',
+    'confirm.clearTitle': 'Clear all saved items?', 'confirm.clearMsg': 'This cannot be undone — all history and local files will be deleted.',
+    'status.fillAll': 'Please fill in all required fields',
+    'status.generating': 'Generating {n} images in parallel...',
+    'status.done': 'Done {done}/{total} · {sec}s',
+    'status.doneFail': 'Done {done}/{total} · {sec}s · {failed} failed',
+    'status.allFail': 'All generations failed',
+    'status.fillKey': 'Please enter API Key',
+    'status.fillModel': 'Please enter a model name',
+    'status.fillPromptOrFirst': 'Please enter a prompt or upload a first frame',
+    'status.submitting': 'Submitting...',
+    'status.polling': 'Polling · {id}…',
+    'status.error': 'Error: {msg}',
+    'status.noVideoUrl': 'Succeeded but no video URL returned',
+    'status.vidDone': 'Done · {sec}s',
+    'status.vidDoneDur': 'Done · {sec}s · duration {dur}s',
+    'status.fail': 'Failed: {msg}',
+    'status.pollingState': '{state} · {sec}s',
+    'status.favFailImg': 'Save failed: {msg}',
+    'status.favFailVid': 'Video save failed (CORS or network): {msg}',
+    'err.empty': 'Empty response', 'err.unknownFmt': 'Unrecognized response format', 'err.noTaskId': 'No task_id returned',
+    'lang.toggle': '中',
+    'region.cn': 'CN', 'region.us': 'Overseas', 'region.gemini': 'Gemini',
+    'region.hint.cn': 'China Mainland endpoint',
+    'region.hint.us': 'Los Angeles (US) endpoint · recommended for overseas users — faster, data stays out of CN',
+    'region.hint.gemini': 'Google Gemini native image generation · gemini-3-pro-image-preview (Nano Banana Pro)',
+    'ref.subject.instr': 'Use as the primary subject and composition reference.',
+    'ref.style.instr': 'Apply this artistic style, brush, texture and color tone.',
+    'ref.character.instr': "Preserve this character's facial features, hairstyle and outfit.",
+    'ref.palette.instr': 'Constrain the output color palette to that of this image.'
+  }
+};
+
+let currentLang = (() => {
+  try { return localStorage.getItem('lang') === 'en' ? 'en' : 'zh'; } catch { return 'zh'; }
+})();
+
+function t(key, vars) {
+  let s = (I18N[currentLang] && I18N[currentLang][key]) || (I18N.zh[key]) || key;
+  if (vars) for (const k in vars) s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), vars[k]);
+  return s;
+}
+
+function applyI18n() {
+  document.documentElement.lang = currentLang === 'en' ? 'en' : 'zh-CN';
+  document.title = t('title.page');
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const arg = el.getAttribute('data-i18n-arg');
+    el.textContent = arg ? t(key, { n: arg }) : t(key);
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    el.placeholder = t(el.getAttribute('data-i18n-ph'));
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.getAttribute('data-i18n-title'));
+  });
+  const lb = document.getElementById('langBtnText');
+  if (lb) lb.textContent = t('lang.toggle');
+  // mode-dependent dynamic text
+  const badge = document.getElementById('modeBadge');
+  if (badge) badge.textContent = currentMode === 'img' ? (currentRegion.img === 'gemini' ? 'Gemini Pro Image' : 'GPT Image 2') : 'Seedance 2.0';
+  const phT = document.getElementById('placeholderText');
+  if (phT) phT.textContent = currentMode === 'img' ? t('placeholder.image') : t('placeholder.video');
+  const gbt = document.getElementById('genBtnText');
+  if (gbt) gbt.textContent = currentMode === 'img' ? t('btn.gen.image') : t('btn.gen.video');
+  // re-render gallery + fav buttons + history (for items already in DOM)
+  if (typeof imgRenderGallery === 'function' && Array.isArray(imgResults) && imgResults.length) imgRenderGallery();
+  if (typeof syncFavButtons === 'function') syncFavButtons();
+  // Download button: re-set if visible
+  const dl = document.getElementById('dlAllBtn');
+  if (dl && dl.style.display !== 'none' && dl.querySelector('span')) {
+    const sp = dl.querySelector('span');
+    if (currentMode === 'vid') sp.textContent = t('btn.downloadVideo');
+    else sp.textContent = (imgResults && imgResults.length > 1) ? t('btn.downloadAll') : t('btn.download');
+  }
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'zh' ? 'en' : 'zh';
+  try { localStorage.setItem('lang', currentLang); } catch {}
+  applyI18n();
+}
+
+/* ─────────────────────────────────
+   REGION (endpoint)
+───────────────────────────────── */
+const REGIONS = {
+  cn: {
+    label: 'cn',
+    img: { apiUrl: 'https://api.modelverse.cn/v1/images/generations' },
+    vid: {
+      submitUrl: 'https://api.modelverse.cn/v1/tasks/submit',
+      statusUrl: 'https://api.modelverse.cn/v1/tasks/status'
+    }
+  },
+  us: {
+    label: 'us',
+    img: { apiUrl: 'https://api-us-ca.umodelverse.ai/v1/images/generations' },
+    vid: {
+      submitUrl: 'https://api-us-ca.umodelverse.ai/v1/tasks/submit',
+      statusUrl: 'https://api-us-ca.umodelverse.ai/v1/tasks/status'
+    }
+  },
+  gemini: {
+    label: 'gemini',
+    img: { apiUrl: 'https://api.modelverse.cn/v1beta/models/' },
+    defaultModel: 'gemini-3-pro-image-preview'
+  }
+};
+
+const currentRegion = { img: 'cn', vid: 'cn' };
+
+function setRegion(mode, region, opts) {
+  if (!REGIONS[region]) return;
+  currentRegion[mode] = region;
+  // Sync toggle UI
+  const sidebar = document.getElementById('sidebar-' + mode);
+  if (sidebar) {
+    sidebar.querySelectorAll('.region-toggle .region-opt').forEach(b => {
+      b.classList.toggle('active', b.dataset.region === region);
+    });
+  }
+  // Update hint
+  const hint = document.getElementById(mode + '-regionHint');
+  if (hint) {
+    const k = 'region.hint.' + region;
+    hint.setAttribute('data-i18n', k);
+    hint.textContent = t(k);
+  }
+  // Update endpoint inputs (always — user opts in by clicking)
+  if (mode === 'img') {
+    const u = document.getElementById('img-apiUrl');
+    if (u) u.value = REGIONS[region].img.apiUrl;
+    // Update model when switching to Gemini
+    const m = document.getElementById('img-model');
+    if (m && region === 'gemini') {
+      m.value = REGIONS.gemini.defaultModel;
+    } else if (m) {
+      m.value = 'gpt-image-2';
+    }
+    // Update badge
+    const badge = document.getElementById('modeBadge');
+    if (badge) {
+      badge.textContent = region === 'gemini' ? 'Gemini Pro Image' : 'GPT Image 2';
+    }
+  } else {
+    const s = document.getElementById('vid-submitUrl');
+    const q = document.getElementById('vid-statusUrl');
+    if (s) s.value = REGIONS[region].vid.submitUrl;
+    if (q) q.value = REGIONS[region].vid.statusUrl;
+  }
+  if (!(opts && opts.silent)) {
+    try { localStorage.setItem('region.' + mode, region); } catch {}
+  }
+}
+
+function initRegions() {
+  ['img', 'vid'].forEach(mode => {
+    let saved = 'cn';
+    try { const v = localStorage.getItem('region.' + mode); if (v === 'us' || v === 'cn' || v === 'gemini') saved = v; } catch {}
+    // Detect from existing input values (in case user edited URL manually before reload)
+    if (mode === 'img') {
+      const v = (document.getElementById('img-apiUrl') || {}).value || '';
+      if (v.includes('umodelverse.ai')) saved = 'us';
+      else if (v.includes('modelverse.cn')) saved = 'cn';
+    } else {
+      const v = (document.getElementById('vid-submitUrl') || {}).value || '';
+      if (v.includes('umodelverse.ai')) saved = 'us';
+      else if (v.includes('modelverse.cn')) saved = 'cn';
+    }
+    setRegion(mode, saved, { silent: true });
+  });
+}
+
+/* ─────────────────────────────────
+   MODE
+───────────────────────────────── */
+let currentMode = 'img';
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('tab-img').classList.toggle('active', mode === 'img');
+  document.getElementById('tab-vid').classList.toggle('active', mode === 'vid');
+  document.getElementById('sidebar-img').style.display = mode === 'img' ? '' : 'none';
+  document.getElementById('sidebar-vid').style.display = mode === 'vid' ? '' : 'none';
+  document.getElementById('genBtnText').textContent = mode === 'img' ? t('btn.gen.image') : t('btn.gen.video');
+  document.getElementById('modeBadge').textContent = mode === 'img' ? (currentRegion.img === 'gemini' ? 'Gemini Pro Image' : 'GPT Image 2') : 'Seedance 2.0';
+  document.getElementById('placeholderText').textContent = mode === 'img' ? t('placeholder.image') : t('placeholder.video');
+  resetPreview();
+  setStatus('', '');
+}
+
+function resetPreview() {
+  document.getElementById('placeholder').style.display = 'block';
+  document.getElementById('gallery').style.display = 'none';
+  document.getElementById('gallery').innerHTML = '';
+  document.getElementById('videoResult').style.display = 'none';
+  document.getElementById('videoResult').src = '';
+  document.getElementById('resultActions').style.display = 'none';
+  document.getElementById('favVidBtn').style.display = 'none';
+}
+
+function handleGenerate() {
+  currentMode === 'img' ? imgGenerate() : vidSubmit();
+}
+function handleDownloadAll() {
+  currentMode === 'img' ? imgDownloadAll() : vidDownload();
+}
+
+/* ─────────────────────────────────
+   STATUS
+───────────────────────────────── */
+function setStatus(msg, type) {
+  const s = document.getElementById('status');
+  if (!msg) { s.className = 'status-bar'; return; }
+  s.className = 'status-bar show ' + type;
+  s.innerHTML = msg;
+}
+
+/* ─────────────────────────────────
+   LOGS DRAWER
+───────────────────────────────── */
+let logTotal = 0;
+let drawerOpen = false;
+
+function toggleLogs() { drawerOpen ? closeLogs() : openLogs(); }
+function openLogs() {
+  drawerOpen = true;
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerBackdrop').classList.add('open');
+}
+function closeLogs() {
+  drawerOpen = false;
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerBackdrop').classList.remove('open');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && drawerOpen) { closeLogs(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l') {
+    e.preventDefault();
+    toggleLogs();
+  }
+});
+
+function updateLogCount() {
+  const a = document.getElementById('logCnt');
+  const b = document.getElementById('drawerCnt');
+  a.textContent = logTotal;
+  b.textContent = logTotal;
+  a.classList.toggle('zero', logTotal === 0);
+}
+
+function addLog(label, dotClass, req, resp) {
+  logTotal++;
+  updateLogCount();
+  const list = document.getElementById('logList');
+  const empty = list.querySelector('.log-empty');
+  if (empty) empty.remove();
+
+  const safeJSON = v => {
+    if (typeof v === 'string') return v;
+    try {
+      const c = JSON.parse(JSON.stringify(v));
+      const trim = o => {
+        if (!o || typeof o !== 'object') return;
+        for (const k of Object.keys(o)) {
+          if (typeof o[k] === 'string' && o[k].startsWith('data:image') && o[k].length > 120) {
+            o[k] = o[k].slice(0, 60) + '…[base64]';
+          } else {
+            trim(o[k]);
+          }
+        }
+      };
+      trim(c);
+      return JSON.stringify(c, null, 2);
+    } catch { return String(v); }
+  };
+
+  const el = document.createElement('div');
+  el.className = 'log-entry';
+  el.innerHTML = `
+    <div class="log-head" onclick="this.nextElementSibling.classList.toggle('open')">
+      <div class="log-dot ${dotClass}"></div>
+      <span class="log-label">${label}</span>
+      <span class="log-time">${new Date().toLocaleTimeString()}</span>
+    </div>
+    <div class="log-body">
+      <div class="log-sec"><div class="log-sec-name">Request</div><pre class="log-pre">${safeJSON(req)}</pre></div>
+      <div class="log-sec"><div class="log-sec-name">Response</div><pre class="log-pre">${safeJSON(resp)}</pre></div>
+    </div>`;
+  list.prepend(el);
+}
+
+function clearLogs() {
+  logTotal = 0;
+  updateLogCount();
+  document.getElementById('logList').innerHTML = '<div class="log-empty" data-i18n="logs.empty">' + t('logs.empty') + '</div>';
+}
+
+/* ─────────────────────────────────
+   HISTORY (IndexedDB)
+───────────────────────────────── */
+const HistoryDB = (() => {
+  const DB_NAME = 'ai-studio', STORE = 'items', VER = 1;
+  let _db = null;
+  function open() {
+    if (_db) return Promise.resolve(_db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, VER);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          const s = db.createObjectStore(STORE, { keyPath: 'id' });
+          s.createIndex('ts', 'ts', { unique: false });
+        }
+      };
+      req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+      req.onerror = e => reject(e.target.error);
+    });
+  }
+  async function tx(mode) {
+    const db = await open();
+    return db.transaction(STORE, mode).objectStore(STORE);
+  }
+  return {
+    async add(record) {
+      const s = await tx('readwrite');
+      return new Promise((res, rej) => {
+        const r = s.put(record);
+        r.onsuccess = () => res();
+        r.onerror = e => rej(e.target.error);
+      });
+    },
+    async list() {
+      const s = await tx('readonly');
+      return new Promise((res, rej) => {
+        const out = [];
+        s.index('ts').openCursor(null, 'prev').onsuccess = e => {
+          const c = e.target.result;
+          if (c) { out.push(c.value); c.continue(); } else res(out);
+        };
+        s.transaction.onerror = e => rej(e.target.error);
+      });
+    },
+    async remove(id) {
+      const s = await tx('readwrite');
+      return new Promise((res, rej) => {
+        const r = s.delete(id);
+        r.onsuccess = () => res();
+        r.onerror = e => rej(e.target.error);
+      });
+    },
+    async clear() {
+      const s = await tx('readwrite');
+      return new Promise((res, rej) => {
+        const r = s.clear();
+        r.onsuccess = () => res();
+        r.onerror = e => rej(e.target.error);
+      });
+    }
+  };
+})();
+
+const SAVED_IDS = new Set();
+const SAVED_VID_URLS = new Set();
+let historyBlobUrls = [];
+let draggedHistoryBlob = null;
+
+function fmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+}
+function fmtDate(ts) {
+  const d = new Date(ts), now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay
+    ? d.toTimeString().slice(0, 5)
+    : (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+function historyToggle() {
+  const p = document.getElementById('historyPanel');
+  p.classList.toggle('collapsed');
+  try { localStorage.setItem('historyExpanded', p.classList.contains('collapsed') ? '0' : '1'); } catch {}
+}
+
+async function historyRender() {
+  historyBlobUrls.forEach(u => URL.revokeObjectURL(u));
+  historyBlobUrls = [];
+  SAVED_IDS.clear();
+  SAVED_VID_URLS.clear();
+
+  const items = await HistoryDB.list();
+  const grid = document.getElementById('historyGrid');
+  const cnt = document.getElementById('historyCount');
+  const stats = document.getElementById('historyStats');
+
+  let total = 0;
+  items.forEach(it => {
+    total += it.blob.size;
+    if (it.type === 'image' && it.sourceUrl) SAVED_IDS.add(it.sourceUrl);
+    if (it.type === 'video' && it.sourceUrl) SAVED_VID_URLS.add(it.sourceUrl);
+  });
+  cnt.textContent = '(' + items.length + ')';
+  stats.textContent = items.length === 0 ? '0 B' : fmtBytes(total);
+
+  if (items.length === 0) {
+    grid.innerHTML = '<div class="history-empty" data-i18n="history.empty">' + t('history.empty') + '</div>';
+    syncFavButtons();
+    return;
+  }
+
+  grid.innerHTML = '';
+  items.forEach(it => {
+    const u = URL.createObjectURL(it.blob);
+    historyBlobUrls.push(u);
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.title = (it.prompt || '').slice(0, 200);
+    const isVid = it.type === 'video';
+
+    if (isVid) {
+      div.innerHTML = `
+        <video src="${u}" preload="metadata" muted></video>
+        <div class="vid-badge">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+          ${it.duration ? it.duration + 's' : 'VIDEO'}
+        </div>`;
+    } else {
+      div.innerHTML = `<img src="${u}" alt="">`;
+    }
+
+    const rm = document.createElement('button');
+    rm.className = 'item-rm';
+    rm.innerHTML = '×';
+    rm.onclick = e => { e.stopPropagation(); historyDelete(it.id); };
+    div.appendChild(rm);
+
+    const meta = document.createElement('div');
+    meta.className = 'item-meta';
+    meta.innerHTML = `<span>${fmtDate(it.ts)}</span><span>${fmtBytes(it.blob.size)}</span>`;
+    div.appendChild(meta);
+
+    if (!isVid) {
+      const imgEl = div.querySelector('img');
+      if (imgEl) imgEl.draggable = false;
+      div.draggable = true;
+      div.addEventListener('dragstart', e => {
+        draggedHistoryBlob = it.blob;
+        e.dataTransfer.setData('text/plain', 'history');
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+      div.addEventListener('dragend', () => { draggedHistoryBlob = null; });
+    }
+    div.onclick = () => historyOpen(it, u, isVid);
+    grid.appendChild(div);
+  });
+
+  syncFavButtons();
+}
+
+function historyOpen(item, blobUrl, isVid) {
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.onclick = e => { if (e.target === lb) lb.remove(); };
+  if (isVid) {
+    const v = document.createElement('video');
+    v.src = blobUrl; v.controls = true; v.autoplay = true;
+    v.style.maxWidth = '92vw'; v.style.maxHeight = '92vh';
+    v.style.borderRadius = '10px';
+    lb.appendChild(v);
+  } else {
+    const img = document.createElement('img');
+    img.src = blobUrl;
+    lb.appendChild(img);
+  }
+  document.body.appendChild(lb);
+}
+
+async function historyDelete(id) {
+  await HistoryDB.remove(id);
+  await historyRender();
+}
+
+function historyClear() {
+  showConfirm(t('confirm.clearTitle'), t('confirm.clearMsg'), async () => {
+    await HistoryDB.clear();
+    await historyRender();
+  });
+}
+
+function showConfirm(title, msg, onYes) {
+  const mask = document.createElement('div');
+  mask.className = 'confirm-mask';
+  mask.innerHTML = `
+    <div class="confirm-box">
+      <div class="confirm-title">${title}</div>
+      <div class="confirm-msg">${msg}</div>
+      <div class="confirm-actions">
+        <button class="btn-ghost cancel-btn">${t('btn.cancel')}</button>
+        <button class="btn-ghost danger ok-btn">${t('btn.confirm')}</button>
+      </div>
+    </div>`;
+  mask.querySelector('.cancel-btn').onclick = () => mask.remove();
+  mask.querySelector('.ok-btn').onclick = () => { mask.remove(); onYes(); };
+  mask.addEventListener('click', e => { if (e.target === mask) mask.remove(); });
+  document.body.appendChild(mask);
+}
+
+function syncFavButtons() {
+  // Image gallery: re-mark buttons whose corresponding result url is in SAVED_IDS
+  document.querySelectorAll('.gallery-item').forEach(g => {
+    const fav = g.querySelector('.fav-btn');
+    const url = g.dataset.url;
+    if (fav && url && SAVED_IDS.has(url)) {
+      fav.classList.add('saved');
+      fav.innerHTML = t('fav.imgSaved');
+    }
+  });
+  // Video fav button
+  const favVid = document.getElementById('favVidBtn');
+  if (favVid && vidUrl && SAVED_VID_URLS.has(vidUrl)) {
+    favVid.classList.add('saved');
+    favVid.querySelector('span').textContent = t('fav.saved');
+  } else if (favVid) {
+    favVid.classList.remove('saved');
+    const sp = favVid.querySelector('span');
+    if (sp) sp.textContent = t('fav.label');
+  }
+}
+
+async function favImage(idx, btn) {
+  if (btn.classList.contains('saved') || btn.classList.contains('loading')) return;
+  const r = imgResults[idx];
+  if (!r) return;
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    let blob;
+    if (r.isBlob) {
+      blob = await (await fetch(r.url)).blob();
+    } else {
+      blob = await (await fetch(r.url)).blob();
+    }
+    const prompt = document.getElementById('img-prompt').value.trim();
+    const model = document.getElementById('img-model').value.trim();
+    const size = document.getElementById('img-size').value;
+    const refs = REF_ORDER.filter(k => imgRefs[k].file);
+    await HistoryDB.add({
+      id: 'i_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      type: 'image',
+      blob,
+      mime: blob.type || ('image/' + r.fmt),
+      prompt, model, size,
+      duration: null,
+      refs,
+      sourceUrl: r.url,
+      ts: Date.now()
+    });
+    btn.classList.remove('loading');
+    btn.classList.add('saved');
+    btn.innerHTML = t('fav.imgSaved');
+    await historyRender();
+    // Auto-expand if collapsed
+    const p = document.getElementById('historyPanel');
+    if (p.classList.contains('collapsed')) { p.classList.remove('collapsed'); try { localStorage.setItem('historyExpanded', '1'); } catch {} }
+  } catch (e) {
+    btn.classList.remove('loading');
+    btn.innerHTML = t('fav.imgLabel');
+    setStatus(t('status.favFailImg', { msg: e.message }), 'error');
+  }
+}
+
+async function favVideo() {
+  const btn = document.getElementById('favVidBtn');
+  if (!vidUrl || btn.classList.contains('saved') || btn.classList.contains('loading')) return;
+  btn.classList.add('loading');
+  const sp = btn.querySelector('span');
+  sp.textContent = t('fav.saving');
+  try {
+    const blob = await (await fetch(vidUrl)).blob();
+    const prompt = document.getElementById('vid-prompt').value.trim();
+    const model = document.getElementById('vid-model').value.trim();
+    const duration = parseInt(document.getElementById('vid-dur').value);
+    await HistoryDB.add({
+      id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      type: 'video',
+      blob,
+      mime: blob.type || 'video/mp4',
+      prompt, model,
+      size: null,
+      duration,
+      refs: [],
+      sourceUrl: vidUrl,
+      ts: Date.now()
+    });
+    btn.classList.remove('loading');
+    btn.classList.add('saved');
+    sp.textContent = t('fav.saved');
+    await historyRender();
+    const p = document.getElementById('historyPanel');
+    if (p.classList.contains('collapsed')) { p.classList.remove('collapsed'); try { localStorage.setItem('historyExpanded', '1'); } catch {} }
+  } catch (e) {
+    btn.classList.remove('loading');
+    sp.textContent = t('fav.label');
+    setStatus(t('status.favFailVid', { msg: e.message }), 'error');
+  }
+}
+
+/* ─────────────────────────────────
+   IMAGE MODE
+───────────────────────────────── */
+const imgRefs = {
+  subject:   { file: null, labelKey: 'ref.subject',   instrKey: 'ref.subject.instr' },
+  palette:   { file: null, labelKey: 'ref.palette',   instrKey: 'ref.palette.instr' }
+};
+const REF_ORDER = ['subject', 'palette'];
+const MAX_CONCURRENCY = 6;
+let imgResults = [];
+
+function imgRefTile(role) { return document.querySelector('.ref-tile[data-role="' + role + '"]'); }
+
+function imgRefHandle(role, file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  imgRefs[role].file = file;
+  const tile = imgRefTile(role);
+  const r = new FileReader();
+  r.onload = e => {
+    const body = tile.querySelector('.ref-tile-body');
+    body.innerHTML = '';
+    const img = document.createElement('img');
+    img.className = 'ref-thumb';
+    img.src = e.target.result;
+    body.appendChild(img);
+    tile.classList.add('has-image');
+  };
+  r.readAsDataURL(file);
+}
+
+function imgRefClear(role) {
+  imgRefs[role].file = null;
+  const tile = imgRefTile(role);
+  tile.classList.remove('has-image');
+  tile.querySelector('input[type=file]').value = '';
+  tile.querySelector('.ref-tile-body').textContent = t('ref.empty');
+}
+
+(function bindRefTiles() {
+  REF_ORDER.forEach(role => {
+    const tile = imgRefTile(role);
+    const input = tile.querySelector('input[type=file]');
+    const rm = tile.querySelector('.ref-rm');
+
+    tile.addEventListener('click', e => {
+      if (e.target === rm || tile.classList.contains('has-image')) return;
+      input.click();
+    });
+    input.addEventListener('change', () => { if (input.files[0]) imgRefHandle(role, input.files[0]); });
+    rm.addEventListener('click', e => { e.stopPropagation(); imgRefClear(role); });
+
+    tile.addEventListener('dragover', e => {
+      e.preventDefault(); tile.classList.add('drag-over');
+    });
+    tile.addEventListener('dragleave', () => tile.classList.remove('drag-over'));
+    tile.addEventListener('drop', e => {
+      e.preventDefault();
+      tile.classList.remove('drag-over');
+      if (draggedHistoryBlob) {
+        const b = draggedHistoryBlob; draggedHistoryBlob = null;
+        const ext = b.type.includes('jpeg') ? 'jpg' : 'png';
+        imgRefHandle(role, new File([b], 'history.' + ext, { type: b.type || 'image/png' }));
+        return;
+      }
+      if (e.dataTransfer.files[0]) imgRefHandle(role, e.dataTransfer.files[0]);
+    });
+  });
+})();
+
+let imgSubMode = 'gen';
+const editFiles = { src: null, mask: null };
+
+function switchImgSubMode(mode) {
+  imgSubMode = mode;
+  document.getElementById('modeGenBtn').classList.toggle('active', mode === 'gen');
+  document.getElementById('modeEditBtn').classList.toggle('active', mode === 'edit');
+  document.getElementById('genOnlyFields').style.display = mode === 'gen' ? '' : 'none';
+  document.getElementById('editOnlyFields').style.display = mode === 'edit' ? '' : 'none';
+  document.getElementById('genBtnText').textContent = mode === 'edit' ? '编辑图像' : t('btn.gen.image');
+  const apiInput = document.getElementById('img-apiUrl');
+  if (apiInput) {
+    if (mode === 'edit') {
+      apiInput.value = apiInput.value.replace(/\/images\/generations\b/, '/images/edits');
+    } else {
+      apiInput.value = apiInput.value.replace(/\/images\/edits\b/, '/images/generations');
+    }
+  }
+}
+window.switchImgSubMode = switchImgSubMode;
+
+function bindEditTile(tileId, inputId, rmId, role) {
+  const tile = document.getElementById(tileId);
+  const input = document.getElementById(inputId);
+  const rm = document.getElementById(rmId);
+  const body = tile.querySelector('.ref-tile-body');
+  function setFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    editFiles[role] = file;
+    const r = new FileReader();
+    r.onload = e => {
+      body.innerHTML = '';
+      const img = document.createElement('img');
+      img.className = 'ref-thumb'; img.src = e.target.result;
+      body.appendChild(img);
+      tile.classList.add('has-image');
+    };
+    r.readAsDataURL(file);
+  }
+  function setFromUrl(url) {
+    fetch(url).then(r => r.blob()).then(blob => {
+      if (!blob.type.startsWith('image/')) return;
+      const ext = blob.type.includes('jpeg') ? 'jpg' : 'png';
+      setFile(new File([blob], 'dropped.' + ext, { type: blob.type }));
+    }).catch(() => {});
+  }
+  tile.addEventListener('click', e => { if (e.target === rm || tile.classList.contains('has-image')) return; input.click(); });
+  input.addEventListener('change', () => { if (input.files[0]) setFile(input.files[0]); });
+  rm.addEventListener('click', e => {
+    e.stopPropagation(); editFiles[role] = null;
+    tile.classList.remove('has-image'); input.value = '';
+    body.textContent = '+ 点击或拖拽';
+  });
+  tile.addEventListener('dragover', e => { e.preventDefault(); tile.classList.add('drag-over'); });
+  tile.addEventListener('dragleave', () => tile.classList.remove('drag-over'));
+  tile.addEventListener('drop', e => {
+    e.preventDefault(); tile.classList.remove('drag-over');
+    if (draggedHistoryBlob) {
+      const b = draggedHistoryBlob; draggedHistoryBlob = null;
+      const ext = b.type.includes('jpeg') ? 'jpg' : 'png';
+      setFile(new File([b], 'history.' + ext, { type: b.type || 'image/png' }));
+      return;
+    }
+    if (e.dataTransfer.files[0]) { setFile(e.dataTransfer.files[0]); return; }
+    const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    if (url) setFromUrl(url.trim().split('\n')[0]);
+  });
+}
+bindEditTile('editSrcTile', 'editSrcInput', 'editSrcRm', 'src');
+bindEditTile('editMaskTile', 'editMaskInput', 'editMaskRm', 'mask');
+
+async function imgEditRequest(apiUrl, model, key, prompt, size, quality, format) {
+  const editUrl = apiUrl.replace(/\/images\/[^/?]+/, '/images/edits');
+  const fd = new FormData();
+  fd.append('image', editFiles.src);
+  if (editFiles.mask) fd.append('mask', editFiles.mask);
+  fd.append('model', model);
+  fd.append('prompt', prompt);
+  fd.append('size', size);
+  fd.append('quality', quality);
+  fd.append('output_format', format);
+  fd.append('n', '1');
+  if (format === 'jpeg' || format === 'webp') fd.append('output_compression', '100');
+  const resp = await fetch(editUrl, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + key },
+    body: fd
+  });
+  if (!resp.ok) throw new Error(await resp.text());
+  const data = await resp.json();
+  const item = data.data?.[0];
+  if (item?.b64_json) {
+    const bin = atob(item.b64_json);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'image/' + format });
+    return { url: URL.createObjectURL(blob), isBlob: true, fmt: format };
+  }
+  if (item?.url) return { url: item.url, isBlob: false, fmt: format };
+  throw new Error(t('err.unknownFmt'));
+}
+
+function buildRefPromptPrefix(userPrompt) {
+  const active = REF_ORDER.filter(k => imgRefs[k].file);
+  if (active.length === 0) return { prompt: userPrompt, refs: [] };
+  const lines = active.map((k, i) =>
+    `${i + 1}. [${t(imgRefs[k].labelKey)}] — ${t(imgRefs[k].instrKey)}`
+  );
+  const prefix = 'You are given the following reference images, in order:\n' + lines.join('\n') + '\n\nTask: ';
+  return { prompt: prefix + userPrompt, refs: active };
+}
+
+function imgShowLightbox(src) {
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = '<img src="' + src + '">';
+  lb.onclick = () => lb.remove();
+  document.body.appendChild(lb);
+}
+
+function imgDownloadOne(url, fmt, idx) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'image-' + Date.now() + '-' + idx + '.' + fmt;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function imgDownloadAll() {
+  imgResults.forEach((r, i) => setTimeout(() => imgDownloadOne(r.url, r.fmt, i + 1), i * 200));
+}
+
+function imgRenderGallery() {
+  const g = document.getElementById('gallery');
+  g.innerHTML = '';
+  imgResults.forEach((r, i) => {
+    const div = document.createElement('div');
+    div.className = 'gallery-item';
+    div.dataset.url = r.url;
+    const img = document.createElement('img');
+    img.src = r.url;
+    img.onclick = () => imgShowLightbox(r.url);
+
+    const dl = document.createElement('button');
+    dl.className = 'gal-dl';
+    dl.textContent = t('btn.download');
+    dl.onclick = e => { e.stopPropagation(); imgDownloadOne(r.url, r.fmt, i + 1); };
+
+    const fav = document.createElement('button');
+    fav.className = 'fav-btn';
+    fav.innerHTML = SAVED_IDS.has(r.url) ? t('fav.imgSaved') : t('fav.imgLabel');
+    if (SAVED_IDS.has(r.url)) fav.classList.add('saved');
+    fav.onclick = e => { e.stopPropagation(); favImage(i, fav); };
+
+    const split = document.createElement('button');
+    split.className = 'split-btn';
+    split.textContent = '切分';
+    split.onclick = e => { e.stopPropagation(); toggleSplitMenu(i, split); };
+
+    const menu = document.createElement('div');
+    menu.className = 'split-menu';
+    menu.dataset.idx = i;
+    const btn2 = document.createElement('button');
+    btn2.textContent = '2 × 2';
+    btn2.onclick = e => { e.stopPropagation(); splitImage(i, 2); menu.classList.remove('show'); };
+    const btn3 = document.createElement('button');
+    btn3.textContent = '3 × 3';
+    btn3.onclick = e => { e.stopPropagation(); splitImage(i, 3); menu.classList.remove('show'); };
+    menu.append(btn2, btn3);
+
+    div.append(img, fav, dl, split, menu);
+    g.appendChild(div);
+  });
+}
+
+function toggleSplitMenu(idx, btn) {
+  const menu = btn.nextElementSibling;
+  const wasOpen = menu.classList.contains('show');
+  document.querySelectorAll('.split-menu').forEach(m => m.classList.remove('show'));
+  if (!wasOpen) menu.classList.add('show');
+}
+
+async function splitImage(idx, gridN) {
+  const r = imgResults[idx];
+  if (!r) return;
+  setStatus(`正在切分为 ${gridN}×${gridN}...`, 'info');
+
+  try {
+    const srcImg = await new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => rej(new Error('图片加载失败'));
+      im.src = r.url;
+      im.crossOrigin = 'anonymous';
+    });
+
+    const W = srcImg.naturalWidth, H = srcImg.naturalHeight;
+    const cw = Math.floor(W / gridN), ch = Math.floor(H / gridN);
+
+    for (let row = 0; row < gridN; row++) {
+      for (let col = 0; col < gridN; col++) {
+        const cv = document.createElement('canvas');
+        cv.width = cw; cv.height = ch;
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(srcImg, col*cw, row*ch, cw, ch, 0, 0, cw, ch);
+        const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+        if (!blob) throw new Error('canvas.toBlob 失败');
+        const url = URL.createObjectURL(blob);
+        imgResults.push({
+          url,
+          fmt: 'png',
+          isBlob: true,
+          variantLabel: `#${idx+1}分割_${row*gridN + col + 1}`
+        });
+      }
+    }
+    imgRenderGallery();
+    setStatus(`完成，已追加 ${gridN*gridN} 张子图`, 'success');
+    document.getElementById('resultActions').style.display = 'flex';
+    document.getElementById('dlAllBtn').innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span>' + (imgResults.length > 1 ? t('btn.downloadAll') : t('btn.download')) + '</span>';
+  } catch (e) {
+    setStatus('切分失败：' + e.message, 'error');
+  }
+}
+
+async function imgSingleRequest(apiUrl, model, key, prompt, size, quality, format) {
+  const isGemini = currentRegion.img === 'gemini';
+
+  if (isGemini) {
+    // ── Gemini API (模型原生图像生成) ──
+    const geminiUrl = 'https://api.modelverse.cn/v1beta/models/' + model + ':generateContent';
+    const sizeMap = { '1024x1024':'1:1','1536x1024':'3:2','1024x1536':'2:3','2048x2048':'1:1','2048x1152':'16:9','1152x2048':'9:16' };
+    const qualityMap = { 'low':'1K','medium':'2K','high':'4K' };
+    const aspectRatio = sizeMap[size] || '1:1';
+    const imageSize = qualityMap[quality] || '2K';
+
+    const parts = [{ text: prompt }];
+
+    // 参考图转为 inlineData
+    const activeRefs = REF_ORDER.filter(k => imgRefs[k].file);
+    if (activeRefs.length > 0) {
+      for (const role of activeRefs) {
+        const b64 = await fileToBase64(imgRefs[role].file);
+        const mime = imgRefs[role].file.type || 'image/png';
+        parts.push({ inlineData: { mimeType: mime, data: b64.split(',')[1] } });
+      }
+    }
+
+    const body = {
+      contents: [{ parts }],
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        imageConfig: { aspectRatio, imageSize }
+      }
+    };
+
+    const resp = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    addLog('Gemini · ' + (resp.ok ? 'OK' : 'Error'), resp.ok ? 'img' : 'err',
+      { model, prompt: prompt.slice(0, 200), aspectRatio, imageSize, refs: activeRefs.length }, data);
+    if (!resp.ok) throw new Error(data.error?.message || JSON.stringify(data));
+
+    const partsOut = data.candidates?.[0]?.content?.parts;
+    if (!partsOut) throw new Error(t('err.empty'));
+    for (const p of partsOut) {
+      if (p.inlineData?.data) {
+        const mime = p.inlineData.mimeType || 'image/png';
+        const ext = mime.includes('jpeg') ? 'jpeg' : 'png';
+        const bin = atob(p.inlineData.data), bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return { url: URL.createObjectURL(new Blob([bytes], { type: mime })), fmt: ext, isBlob: true };
+      }
+    }
+    throw new Error(t('err.unknownFmt'));
+  }
+
+  // ── 原有 OpenAI 兼容接口 ──
+  let resp;
+  const { prompt: finalPrompt, refs } = buildRefPromptPrefix(prompt);
+  if (refs.length > 0) {
+    const editUrl = apiUrl.replace(/\/images\/generations\/?$/, '/images/edits');
+    const fd = new FormData();
+    refs.forEach(role => fd.append('image[]', imgRefs[role].file));
+    fd.append('model', model);
+    fd.append('prompt', finalPrompt);
+    fd.append('size', size);
+    fd.append('quality', quality);
+    resp = await fetch(editUrl, { method: 'POST', headers: { 'Authorization': 'Bearer ' + key }, body: fd });
+  } else {
+    const body = { model, prompt: finalPrompt, size, quality, output_format: format, output_compression: 100 };
+    resp = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  }
+  const data = await resp.json();
+  addLog('Image · ' + (resp.ok ? 'OK' : 'Error'), resp.ok ? 'img' : 'err',
+    { model, refs, prompt: finalPrompt.slice(0, 200), size, quality, format }, data);
+  if (!resp.ok) throw new Error(data.error?.message || JSON.stringify(data));
+  const item = data.data?.[0];
+  if (!item) throw new Error(t('err.empty'));
+  if (item.b64_json) {
+    const bin = atob(item.b64_json), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return { url: URL.createObjectURL(new Blob([bytes], { type: 'image/' + format })), fmt: format, isBlob: true };
+  } else if (item.url) {
+    return { url: item.url, fmt: format, isBlob: false };
+  }
+  throw new Error(t('err.unknownFmt'));
+}
+
+async function imgGenerate() {
+  const apiUrl = document.getElementById('img-apiUrl').value.trim();
+  const key = document.getElementById('img-apiKey').value.trim();
+  const model = document.getElementById('img-model').value.trim();
+  const prompt = document.getElementById('img-prompt').value.trim();
+  const size = document.getElementById('img-size').value;
+  const quality = document.getElementById('img-quality').value;
+  const format = document.getElementById('img-format').value;
+  const perVariant = parseInt(document.getElementById('img-batch').value);
+  const variantsRaw = document.getElementById('img-variants').value;
+  const btn = document.getElementById('genBtn');
+
+  if (!apiUrl || !model || !key || !prompt) return setStatus(t('status.fillAll'), 'error');
+
+  if (imgSubMode === 'edit') {
+    if (!editFiles.src) return setStatus('请先上传源图', 'error');
+    btn.disabled = true;
+    setStatus('编辑中…', 'info');
+    imgResults.forEach(r => { if (r.isBlob) URL.revokeObjectURL(r.url); });
+    imgResults = [];
+    try {
+      const r = await imgEditRequest(apiUrl, model, key, prompt, size, quality, format);
+      imgResults.push(r);
+      document.getElementById('placeholder').style.display = 'none';
+      document.getElementById('gallery').style.display = 'grid';
+      imgRenderGallery();
+      document.getElementById('resultActions').style.display = 'flex';
+      setStatus('完成', 'success');
+    } catch (e) {
+      setStatus('错误：' + e.message, 'error');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> <span id="genBtnText">编辑图像</span>';
+    return;
+  }
+  const variants = variantsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+  const hasPlaceholder = /\{(变体|variant)\}/.test(prompt);
+  const expandedPrompts = variants.length === 0
+    ? [{ label: '', prompt }]
+    : variants.map((v, i) => ({
+        label: 'V' + (i + 1),
+        prompt: hasPlaceholder
+          ? prompt.replace(/\{(变体|variant)\}/g, v)
+          : prompt + ', ' + v
+      }));
+
+  const isolate = document.getElementById('img-isolate').checked;
+  if (isolate) {
+    const ISOLATE_TAIL = ', single character, single pose, isolated subject, NO sticker sheet, NO multi-panel collage, NO multiple poses in one image';
+    expandedPrompts.forEach(ep => { ep.prompt += ISOLATE_TAIL; });
+  }
+
+  const jobs = [];
+  expandedPrompts.forEach(ep => {
+    for (let i = 0; i < perVariant; i++) jobs.push(ep);
+  });
+  const total = jobs.length;
+
+  btn.disabled = true;
+  const t0 = Date.now();
+  const tid = setInterval(() => {
+    const el = document.getElementById('imgTimer');
+    if (el) el.textContent = Math.floor((Date.now() - t0) / 1000) + 's';
+  }, 1000);
+  const updateBtn = (done) => {
+    btn.innerHTML = `<span class="spinner"></span> ${done}/${total} <span id="imgTimer">${Math.floor((Date.now() - t0) / 1000)}s</span>`;
+  };
+  updateBtn(0);
+  setStatus(t('status.generating', { n: total }), 'info');
+
+  imgResults.forEach(r => { if (r.isBlob) URL.revokeObjectURL(r.url); });
+  imgResults = [];
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('gallery').style.display = 'grid';
+  document.getElementById('resultActions').style.display = 'none';
+
+  let failed = 0, done = 0, nextIdx = 0;
+  const worker = async () => {
+    while (nextIdx < jobs.length) {
+      const myIdx = nextIdx++;
+      const job = jobs[myIdx];
+      try {
+        const r = await imgSingleRequest(apiUrl, model, key, job.prompt, size, quality, format, job.label);
+        r.variantLabel = job.label;
+        r.variantPrompt = job.prompt;
+        imgResults.push(r);
+        imgRenderGallery();
+      } catch (e) {
+        failed++;
+        console.error(e);
+      } finally {
+        done++;
+        updateBtn(done);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENCY, total) }, () => worker()));
+
+  clearInterval(tid);
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> <span id="genBtnText">' + t('btn.gen.image') + '</span>';
+
+  if (imgResults.length > 0) {
+    document.getElementById('resultActions').style.display = 'flex';
+    document.getElementById('dlAllBtn').innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span>' + (imgResults.length > 1 ? t('btn.downloadAll') : t('btn.download')) + '</span>';
+    const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+    setStatus(failed
+      ? t('status.doneFail', { done: imgResults.length, total, sec: elapsed, failed })
+      : t('status.done', { done: imgResults.length, total, sec: elapsed }),
+      failed ? 'error' : 'success');
+  } else {
+    setStatus(t('status.allFail'), 'error');
+  }
+}
+
+/* ─────────────────────────────────
+   VIDEO MODE
+───────────────────────────────── */
+const vidImgFiles = { first: null, last: null };
+let vidPollTimer = null, vidUrl = null;
+
+function vidHandleImg(role, file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  vidImgFiles[role] = file;
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById('vid-' + role + 'Img').src = e.target.result;
+    document.getElementById('vid-' + role + 'Thumb').style.display = 'block';
+    document.getElementById('vid-' + role + 'Drop').style.display = 'none';
+  };
+  r.readAsDataURL(file);
+}
+function vidClearImg(role) {
+  vidImgFiles[role] = null;
+  document.getElementById('vid-' + role + 'File').value = '';
+  document.getElementById('vid-' + role + 'Thumb').style.display = 'none';
+  document.getElementById('vid-' + role + 'Drop').style.display = 'block';
+}
+
+['first', 'last'].forEach(role => {
+  const z = document.getElementById('vid-' + role + 'Drop');
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('drag-over'); });
+  z.addEventListener('dragleave', () => z.classList.remove('drag-over'));
+  z.addEventListener('drop', e => {
+    e.preventDefault();
+    z.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) vidHandleImg(role, e.dataTransfer.files[0]);
+  });
+});
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function vidDownload() {
+  if (!vidUrl) return;
+  const a = document.createElement('a');
+  a.href = vidUrl;
+  a.download = 'seedance-' + Date.now() + '.mp4';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+async function vidSubmit() {
+  const submitUrl = document.getElementById('vid-submitUrl').value.trim();
+  const key = document.getElementById('vid-apiKey').value.trim();
+  const model = document.getElementById('vid-model').value.trim();
+  const prompt = document.getElementById('vid-prompt').value.trim();
+  const resolution = document.getElementById('vid-res').value;
+  const ratio = document.getElementById('vid-ratio').value;
+  const duration = parseInt(document.getElementById('vid-dur').value);
+  const generateAudio = document.getElementById('vid-audio').value === 'true';
+  const cameraFixed = document.getElementById('vid-cam').value === 'true';
+  const seedVal = document.getElementById('vid-seed').value;
+  const btn = document.getElementById('genBtn');
+
+  if (!key) return setStatus(t('status.fillKey'), 'error');
+  if (!model) return setStatus(t('status.fillModel'), 'error');
+  if (!prompt && !vidImgFiles.first) return setStatus(t('status.fillPromptOrFirst'), 'error');
+
+  const content = [];
+  if (prompt) content.push({ type: 'text', text: prompt });
+  if (vidImgFiles.first) {
+    const b64 = await fileToBase64(vidImgFiles.first);
+    const o = { type: 'image_url', image_url: { url: b64 } };
+    if (vidImgFiles.last) o.role = 'first_frame';
+    content.push(o);
+  }
+  if (vidImgFiles.last) {
+    const b64 = await fileToBase64(vidImgFiles.last);
+    content.push({ type: 'image_url', image_url: { url: b64 }, role: 'last_frame' });
+  }
+  const refVideo = document.getElementById('vid-refVideo').value.trim();
+  if (refVideo) content.push({ type: 'video_url', video_url: { url: refVideo }, role: 'reference_video' });
+  const refAudio = document.getElementById('vid-refAudio').value.trim();
+  if (refAudio) content.push({ type: 'audio_url', audio_url: { url: refAudio }, role: 'reference_audio' });
+
+  const hasImage = !!(vidImgFiles.first || vidImgFiles.last);
+  const parameters = { generate_audio: generateAudio, duration, resolution, ratio, watermark: false, execution_expires_after: 172800 };
+  if (!hasImage) parameters.camera_fixed = cameraFixed;
+  if (seedVal !== '') parameters.seed = parseInt(seedVal);
+
+  const body = { model, input: { content }, parameters };
+
+  btn.disabled = true;
+  setStatus('<span class="spinner"></span> ' + t('status.submitting'), 'info');
+  document.getElementById('placeholder').style.display = 'block';
+  document.getElementById('videoResult').style.display = 'none';
+  document.getElementById('resultActions').style.display = 'none';
+  if (vidPollTimer) { clearInterval(vidPollTimer); vidPollTimer = null; }
+
+  try {
+    const resp = await fetch(submitUrl, {
+      method: 'POST',
+      headers: { 'Authorization': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    addLog('Video · Submit', resp.ok ? 'vid' : 'err', body, data);
+    if (!resp.ok) throw new Error(data.error?.message || JSON.stringify(data));
+    const taskId = data.output?.task_id;
+    if (!taskId) throw new Error(t('err.noTaskId'));
+    setStatus('<span class="spinner"></span> ' + t('status.polling', { id: taskId.slice(0, 16) }), 'info');
+    vidStartPolling(taskId);
+  } catch (e) {
+    setStatus(t('status.error', { msg: e.message }), 'error');
+    btn.disabled = false;
+  }
+}
+
+function vidStartPolling(taskId) {
+  const statusUrl = document.getElementById('vid-statusUrl').value.trim();
+  const key = document.getElementById('vid-apiKey').value.trim();
+  const t0 = Date.now();
+  const btn = document.getElementById('genBtn');
+
+  vidPollTimer = setInterval(async () => {
+    try {
+      const resp = await fetch(statusUrl + '?task_id=' + encodeURIComponent(taskId), { headers: { 'Authorization': key } });
+      const data = await resp.json();
+      const st = data.output?.task_status;
+      const elapsed = ((Date.now() - t0) / 1000).toFixed(0);
+
+      if (st === 'Success') {
+        clearInterval(vidPollTimer); vidPollTimer = null;
+        addLog('Video · Success', 'ok', { task_id: taskId }, data);
+        const url = data.output?.urls?.[0];
+        if (!url) { setStatus(t('status.noVideoUrl'), 'error'); btn.disabled = false; return; }
+        vidUrl = url;
+        const vid = document.getElementById('videoResult');
+        vid.src = url;
+        vid.style.display = 'block';
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('resultActions').style.display = 'flex';
+        document.getElementById('dlAllBtn').innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> <span>' + t('btn.downloadVideo') + '</span>';
+        const favVid = document.getElementById('favVidBtn');
+        favVid.style.display = 'flex';
+        favVid.classList.remove('saved', 'loading');
+        favVid.querySelector('span').textContent = SAVED_VID_URLS.has(url) ? t('fav.saved') : t('fav.label');
+        if (SAVED_VID_URLS.has(url)) favVid.classList.add('saved');
+        const dur = data.usage?.duration ?? '';
+        setStatus(dur ? t('status.vidDoneDur', { sec: elapsed, dur }) : t('status.vidDone', { sec: elapsed }), 'success');
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> <span id="genBtnText">' + t('btn.gen.video') + '</span>';
+      } else if (st === 'Failure' || st === 'Expired') {
+        clearInterval(vidPollTimer); vidPollTimer = null;
+        addLog('Video · ' + st, 'err', { task_id: taskId }, data);
+        setStatus(t('status.fail', { msg: data.output?.error_message || st }), 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> <span id="genBtnText">' + t('btn.gen.video') + '</span>';
+      } else {
+        setStatus('<span class="spinner"></span> ' + t('status.pollingState', { state: st || 'Pending', sec: elapsed }), 'info');
+      }
+    } catch (e) {
+      addLog('Video · PollError', 'err', { task_id: taskId }, e.message);
+    }
+  }, 5000);
+}
+
+/* ─────────────────────────────────
+   BOOT
+───────────────────────────────── */
+(function bootHistory() {
+  applyI18n();
+  initRegions();
+  try {
+    if (localStorage.getItem('historyExpanded') === '1') {
+      document.getElementById('historyPanel').classList.remove('collapsed');
+    }
+  } catch {}
+  const isoCb = document.getElementById('img-isolate');
+  if (isoCb) {
+    try {
+      const saved = localStorage.getItem('img.isolate');
+      if (saved !== null) isoCb.checked = saved === '1';
+    } catch {}
+    isoCb.addEventListener('change', () => {
+      try { localStorage.setItem('img.isolate', isoCb.checked ? '1' : '0'); } catch {}
+    });
+  }
+  historyRender().catch(e => console.error('history boot:', e));
+
+  // ─── Split panel ───
+  let _splitHistUrls = [], _splitSrcUrl = null, _splitOutputSize = 'cell';
+
+  function setSplitSize(mode) {
+    _splitOutputSize = mode;
+    document.getElementById('splitSizeCell').classList.toggle('active', mode === 'cell');
+    document.getElementById('splitSizeOrig').classList.toggle('active', mode === 'orig');
+  }
+
+  async function favSplitCell(blob, btn) {
+    if (btn.classList.contains('saved') || btn.classList.contains('loading')) return;
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      await HistoryDB.add({
+        id: 'i_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+        type: 'image', blob, mime: 'image/png',
+        prompt: '[切分]', model: '', size: '',
+        duration: null, refs: [], sourceUrl: '', ts: Date.now()
+      });
+      btn.classList.remove('loading');
+      btn.classList.add('saved');
+      btn.innerHTML = '★ 已收藏';
+      await historyRender();
+      const p = document.getElementById('historyPanel');
+      if (p.classList.contains('collapsed')) {
+        p.classList.remove('collapsed');
+        try { localStorage.setItem('historyExpanded', '1'); } catch {}
+      }
+    } catch (e) {
+      btn.classList.remove('loading');
+      btn.innerHTML = '☆ 收藏';
+    }
+  }
+
+  async function openSplitPanel() {
+    _splitHistUrls.forEach(u => URL.revokeObjectURL(u));
+    _splitHistUrls = [];
+    _splitSrcUrl = null;
+    const previewArea = document.getElementById('splitPreviewArea');
+    previewArea.innerHTML = '<div class="split-placeholder">← 点击左侧图片选择来源</div>';
+    document.getElementById('splitResultArea').innerHTML = '';
+    const list = document.getElementById('splitSrcList');
+    list.innerHTML = '';
+
+    if (imgResults.length) {
+      const lbl = document.createElement('div');
+      lbl.className = 'split-src-label'; lbl.textContent = '当前生成';
+      list.appendChild(lbl);
+      imgResults.filter(r => r.url).forEach(r => appendSplitThumb(list, r.url));
+    }
+    const hist = (await HistoryDB.list()).filter(r => r.type === 'image');
+    if (hist.length) {
+      const lbl = document.createElement('div');
+      lbl.className = 'split-src-label'; lbl.textContent = '历史收藏';
+      list.appendChild(lbl);
+      hist.forEach(r => {
+        const url = URL.createObjectURL(r.blob);
+        _splitHistUrls.push(url);
+        appendSplitThumb(list, url);
+      });
+    }
+    if (!imgResults.length && !hist.length)
+      list.innerHTML = '<div class="split-no-src">暂无可用图片</div>';
+
+    document.getElementById('splitPanel').style.display = 'flex';
+  }
+
+  function appendSplitThumb(container, url) {
+    const img = document.createElement('img');
+    img.src = url; img.className = 'split-thumb';
+    img.onclick = () => {
+      document.querySelectorAll('.split-thumb').forEach(t => t.classList.remove('sel'));
+      img.classList.add('sel');
+      _splitSrcUrl = url;
+      const area = document.getElementById('splitPreviewArea');
+      area.innerHTML = '';
+      const p = document.createElement('img');
+      p.src = url; p.style.cssText = 'max-width:100%;max-height:220px;border-radius:8px;display:block;margin:0 auto';
+      area.appendChild(p);
+      document.getElementById('splitResultArea').innerHTML = '';
+    };
+    container.appendChild(img);
+  }
+
+  async function doSplitPanel(n) {
+    if (!_splitSrcUrl) { setStatus('请先选择图片', 'error'); return; }
+    const resultArea = document.getElementById('splitResultArea');
+    resultArea.innerHTML = '<div style="color:var(--fg-muted);font-size:12px;padding:10px 0">切分中…</div>';
+    try {
+      const srcImg = await new Promise((res, rej) => {
+        const im = new Image();
+        im.onload = () => res(im); im.onerror = rej; im.src = _splitSrcUrl;
+      });
+      const W = srcImg.naturalWidth, H = srcImg.naturalHeight;
+      const cw = Math.floor(W / n), ch = Math.floor(H / n);
+      const outW = _splitOutputSize === 'orig' ? W : cw;
+      const outH = _splitOutputSize === 'orig' ? H : ch;
+      const cells = [];
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+        const cv = document.createElement('canvas');
+        cv.width = outW; cv.height = outH;
+        cv.getContext('2d').drawImage(srcImg, c*cw, r*ch, cw, ch, 0, 0, outW, outH);
+        const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+        cells.push({ blob, url: URL.createObjectURL(blob), idx: r*n+c+1 });
+      }
+      resultArea.innerHTML = '';
+      const grid = document.createElement('div');
+      grid.className = 'split-result-grid';
+      grid.style.gridTemplateColumns = `repeat(${n},1fr)`;
+      cells.forEach(cell => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;border-radius:6px;overflow:hidden;background:var(--bg-elev-2)';
+        const img = document.createElement('img');
+        img.src = cell.url; img.style.cssText = 'width:100%;display:block';
+        const dl = document.createElement('button');
+        dl.className = 'gal-dl'; dl.textContent = '下载';
+        dl.style.cssText = 'position:absolute;bottom:4px;right:4px;opacity:1';
+        dl.onclick = () => imgDownloadOne(cell.url, 'png', cell.idx);
+        const fav = document.createElement('button');
+        fav.className = 'fav-btn'; fav.innerHTML = '☆ 收藏';
+        fav.style.cssText = 'position:absolute;bottom:4px;left:4px;opacity:1';
+        fav.onclick = () => favSplitCell(cell.blob, fav);
+        wrap.append(img, fav, dl); grid.appendChild(wrap);
+      });
+      resultArea.appendChild(grid);
+    } catch (e) {
+      resultArea.innerHTML = '<div style="color:var(--danger);font-size:12px">' + e.message + '</div>';
+    }
+  }
+
+  function closeSplitPanel() {
+    document.getElementById('splitPanel').style.display = 'none';
+    _splitHistUrls.forEach(u => URL.revokeObjectURL(u));
+    _splitHistUrls = [];
+  }
+  window.openSplitPanel = openSplitPanel;
+  window.doSplitPanel = doSplitPanel;
+  window.closeSplitPanel = closeSplitPanel;
+  window.setSplitSize = setSplitSize;
+})();
+</script>
+<div id="splitPanel" class="split-panel" style="display:none" onclick="if(event.target===this)closeSplitPanel()">
+  <div class="split-panel-inner">
+    <div class="split-panel-head">
+      <h3>切分工具</h3>
+      <span style="font-size:11px;color:var(--fg-faint);margin-right:2px">输出尺寸</span>
+      <button class="btn-ghost active" id="splitSizeCell" onclick="setSplitSize('cell')">等分</button>
+      <button class="btn-ghost" id="splitSizeOrig" onclick="setSplitSize('orig')">原图</button>
+      <button class="btn-ghost" onclick="doSplitPanel(2)">2 × 2</button>
+      <button class="btn-ghost" onclick="doSplitPanel(3)">3 × 3</button>
+      <button class="icon-btn" onclick="closeSplitPanel()" title="关闭">✕</button>
+    </div>
+    <div class="split-panel-body">
+      <div class="split-left" id="splitSrcList"></div>
+      <div class="split-right">
+        <div id="splitPreviewArea"></div>
+        <div id="splitResultArea"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

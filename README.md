@@ -358,4 +358,49 @@ imgResults.forEach(r => {
 });
 ```
 
+新增生成图片宫格切分功能[Canvas 切分原理]
+
+```javascript
+async function doSplitPanel(n) {           // n = 2（2×2）或 3（3×3）
+  // 1. 把图片 URL 加载成 HTMLImageElement（浏览器可以操作的图片对象）
+  const srcImg = await new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);             // 加载完成才继续
+    im.onerror = rej;
+    im.src = _splitSrcUrl;
+  });
+
+  // 2. 计算每格宽高（整除，余数直接丢掉——1-2px 偏差肉眼看不出）
+  const cw = Math.floor(srcImg.naturalWidth  / n);
+  const ch = Math.floor(srcImg.naturalHeight / n);
+
+  // 3. 双层循环：行 r × 列 c，遍历每个格子
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+
+      // 4. 创建一块空画布，尺寸等于单格大小
+      const cv = document.createElement('canvas');
+      cv.width = cw;
+      cv.height = ch;
+
+      // 5. drawImage 的完整参数：
+      //    源图、从源图的(x,y)开始、截取(宽,高)、画到画布的(0,0)、画出(宽,高)
+      cv.getContext('2d').drawImage(
+        srcImg,          // 源图
+        c * cw, r * ch,  // 从源图的哪个坐标开始截
+        cw,     ch,      // 截多大
+        0,      0,       // 画到画布的哪个位置
+        cw,     ch       // 画多大
+      );
+
+      // 6. 把画布内容导出为 PNG Blob（二进制数据）
+      const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+
+      // 7. 生成临时 URL，就能像普通图片一样显示和下载了
+      const url = URL.createObjectURL(blob);
+    }
+  }
+}
+```
+
 

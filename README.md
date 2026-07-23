@@ -358,16 +358,4 @@ imgResults.forEach(r => {
 });
 ```
 
----
 
-## 六、读源码的建议路径
-
-如果你想完整读懂这份代码，按这个顺序：
-
-1. **先看 HTML 结构**（搜 `<div class="topbar">`、`<aside class="sidebar">`），心里建立"哪里是哪里"的地图
-2. **看 CSS 变量定义**（顶部 `:root { ... }`），明白颜色体系
-3. **看 `applyI18n()` 和 `switchMode()`**，理解最简单的"读 DOM、改 DOM"模式
-4. **看 `imgSingleRequest()`**，这是最核心的"调 API"逻辑
-5. **看 `imgGenerate()`**，理解并发控制和状态更新
-6. **看 `HistoryDB`**，学 IndexedDB 怎么用
-7. **看 `vidStartPolling()`**，学异步轮询模式

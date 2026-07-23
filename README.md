@@ -1,406 +1,283 @@
-# AI Studio 网页实现
+# AI Studio
 
-> 这是一份面向初学者的源码学习笔记。读完后你能搞懂：单文件 HTML 应用是怎么把"前端 + 调 API + 本地存储"这一套跑起来的。
+> 一个基于浏览器端的 AI 图像与视频生成工作台，单文件、零依赖、开箱即用。
 
----
-
-## 一、整体认识
-
-### 1.1 
-
-一个单 HTML 文件的 AI 图片/视频生成工具，所有代码（结构、样式、逻辑）都塞在一个 `.html` 里。
-
-打开浏览器双击即可运行，**不需要任何后端服务器**，因为所有功能靠两件事：
-
-1. **浏览器直接调 AI 服务的 API**（fetch 发请求）
-2. **浏览器本地存储**（IndexedDB 存图片、localStorage 存设置）
-
-### 1.2 文件结构（鸟瞰）
-
-```
-ai-studio-test-UC.html
-├── <head>
-│   └── <style> ... </style>      ← 所有样式（CSS）
-└── <body>
-    ├── <div class="topbar">       ← 顶部栏（标题、Tab、日志按钮）
-    ├── <aside class="sidebar">    ← 左边栏（表单输入）
-    ├── <main>                     ← 主区域（预览结果 + 历史）
-    ├── <aside class="drawer">     ← 右抽屉（请求日志）
-    └── <script> ... </script>     ← 所有 JS 逻辑
-```
+<p align="center">
+  <img src="https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white" alt="HTML5" />
+  <img src="https://img.shields.io/badge/CSS3-1572B6?logo=css3&logoColor=white" alt="CSS3" />
+  <img src="https://img.shields.io/badge/VanillaJS-F7DF1E?logo=javascript&logoColor=black" alt="VanillaJS" />
+  <img src="https://img.shields.io/badge/Single%20File-Yes-8A2BE2" alt="Single File" />
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
+</p>
 
 ---
 
-## 二、核心技术栈（没有任何框架！）
+## 目录
 
-| 技术 | 用途 | 类比 |
-|---|---|---|
-| **原生 HTML** | 页面结构 | 房子的骨架 |
-| **原生 CSS** | 视觉样式 | 房子的装修 |
-| **原生 JavaScript** | 交互逻辑 | 房子的电路水管 |
-| **CSS Grid** | 整体布局 | 把房子分成几个房间 |
-| **fetch API** | 调用 AI 服务 | 打电话给外卖店 |
-| **IndexedDB** | 浏览器本地数据库 | 抽屉里的相册 |
-| **localStorage** | 浏览器小型存储 | 便签纸 |
-| **FileReader** | 读取本地图片 | 扫描仪 |
-
-**重点：没有用 Vue/React 这些框架，所有交互都是 `document.getElementById(...)` 这种最原始的写法。** 适合学习"浏览器到底能做什么"。
-
----
-
-## 三、布局
-
-### 3.1  CSS Grid
-
-CSS Grid 是把一个矩形划成几格，然后告诉每个区块"你坐哪一格"。
-
-代码里这段：
-
-```css
-body {
-  display: grid;
-  grid-template-rows: 52px 1fr;       /* 上面 52 像素高，下面占剩余空间 */
-  grid-template-columns: 360px 1fr;   /* 左边 360 像素宽，右边占剩余 */
-  grid-template-areas:
-    "topbar topbar"     /* 第一行：topbar 占满 */
-    "sidebar main";     /* 第二行：左 sidebar，右 main */
-}
-```
-
-效果：
-
-```
-┌──────────────────────────────────┐
-│           topbar (52px)          │
-├──────────┬───────────────────────┤
-│          │                       │
-│ sidebar  │        main           │
-│ (360px)  │     (剩余空间)         │
-│          │                       │
-└──────────┴───────────────────────┘
-```
-
-### 3.2 颜色为什么"看起来很专业"？
-
-代码顶部定义了一堆 **CSS 变量**（`--bg-base`, `--fg`, `--accent`...）。整套页面只用这十几个色值，所以视觉上很统一。
-
-```css
-:root {
-  --bg-base: #0c0c0f;     /* 最深的底色 */
-  --bg-elev-1: #15151a;   /* 稍亮一点 */
-  --accent: #a78bfa;      /* 紫色点缀 */
-}
-```
-
-后面所有用到颜色的地方都写 `var(--bg-base)`，要改主题色只改这一处。
+- [项目简介](#项目简介)
+- [核心特性](#核心特性)
+- [快速开始](#快速开始)
+- [功能详解](#功能详解)
+  - [图像生成](#图像生成)
+  - [图像编辑](#图像编辑)
+  - [视频生成](#视频生成)
+  - [切分工具](#切分工具)
+- [多区域节点支持](#多区域节点支持)
+- [本地存储](#本地存储)
+- [技术实现](#技术实现)
+- [文件结构](#文件结构)
+- [使用示例](#使用示例)
+- [常见问题](#常见问题)
+- [许可协议](#许可协议)
 
 ---
 
-## 四、主要功能模块拆解
+## 项目简介
 
-### 4.1 双 Tab 切换（图像 / 视频）
+**AI Studio** 是一个纯前端实现的 AI 内容生成工作台，封装在一个独立的 HTML 文件中。它集成了多家主流 AI 服务商的图像与视频生成 API，提供统一的交互界面，支持多区域节点切换、多语言（中/英）、历史收藏、日志追踪等功能。
 
-**思路**：两个 sidebar 区域并排存在，根据当前 Tab 显示一个、隐藏一个。
-
-```javascript
-function switchMode(mode) {
-  currentMode = mode;
-  document.getElementById('sidebar-img').style.display = mode === 'img' ? '' : 'none';
-  document.getElementById('sidebar-vid').style.display = mode === 'vid' ? '' : 'none';
-}
-```
-
-就这么朴素——没有什么"路由""页面跳转"，纯粹是显示和隐藏。
-
-### 4.2 图片生成（核心）
-
-#### 流程图
-
-```
-用户填写表单
-    ↓
-点击"生成"按钮
-    ↓
-imgGenerate() 函数被调用
-    ↓
-读取所有输入（API地址、key、prompt、变体...）
-    ↓
-展开成多个任务（变体数 × 每变体张数）
-    ↓
-并发池（最多 6 个同时跑）
-    ↓
-每个任务 → imgSingleRequest()
-    ↓
-fetch 调用 API
-    ↓
-拿到图片 → 显示在画廊
-```
-
-#### 关键代码片段
-
-**发请求那一步**：
-
-```javascript
-const resp = await fetch(apiUrl, {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer ' + key,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ model, prompt, size, quality })
-});
-const data = await resp.json();
-```
-
-这就是浏览器跟 AI 服务"对话"的全部——发 POST、附带 key 和参数、等响应。
-
-**把返回的 base64 图片变成可显示的图**：
-
-```javascript
-const bin = atob(item.b64_json);              // base64 解码成字节
-const bytes = new Uint8Array(bin.length);
-for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-const blob = new Blob([bytes], { type: 'image/png' });   // 包装成 Blob
-const url = URL.createObjectURL(blob);                    // 生成临时 URL
-// 现在 <img src={url}> 就能显示了
-```
-
-### 4.3 参考图上传
-
-**思路**：用户选了文件 → FileReader 读成 base64 → 显示缩略图 → 发请求时塞进 FormData。
-
-```javascript
-function imgRefHandle(role, file) {
-  imgRefs[role].file = file;
-  const r = new FileReader();
-  r.onload = e => {
-    // e.target.result 就是 "data:image/png;base64,xxxxx..."
-    img.src = e.target.result;   // 直接当 img 的 src 用
-  };
-  r.readAsDataURL(file);
-}
-```
-
-**拖拽上传**就是监听 `dragover` 和 `drop` 事件：
-
-```javascript
-tile.addEventListener('drop', e => {
-  e.preventDefault();
-  const file = e.dataTransfer.files[0];   // 拖进来的文件
-  imgRefHandle(role, file);
-});
-```
-
-### 4.4 并发控制（最多同时跑 6 个）
-
-**问题**：如果一次生成 20 张，全部并发出去会被 API 限流。
-
-**解法**：开 6 个"工人"，谁先做完谁去拿下一个任务。
-
-```javascript
-let nextIdx = 0;
-const worker = async () => {
-  while (nextIdx < jobs.length) {
-    const myIdx = nextIdx++;
-    const job = jobs[myIdx];
-    await imgSingleRequest(...job);   // 串行执行自己的任务
-  }
-};
-// 同时启动 6 个 worker
-await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
-```
-
-这就是经典的**生产者-消费者模式**，是非常通用的并发技巧。
-
-### 4.5 视频生成（异步轮询）
-
-视频不像图片那样秒出，需要 1~3 分钟。所以流程是：
-
-```
-提交任务 → 拿到 task_id → 每 5 秒查一次状态 → 完成或失败
-```
-
-```javascript
-vidPollTimer = setInterval(async () => {
-  const resp = await fetch(statusUrl + '?task_id=' + taskId);
-  const data = await resp.json();
-  if (data.output.task_status === 'Success') {
-    clearInterval(vidPollTimer);   // 停止轮询
-    // 显示视频
-  }
-}, 5000);
-```
-
-`setInterval` 就是"每隔 N 毫秒执行一次"。
-
-### 4.6 历史记录（IndexedDB）
-
-**localStorage 只能存几 MB 字符串**，存图片不够用。所以这里用 **IndexedDB**——浏览器自带的、能存几个 GB 的本地数据库。
-
-可以把它想象成浏览器里的一个小数据库表：
-
-```
-items 表:
-┌─────────────┬───────┬──────┬────────┐
-│ id          │ type  │ blob │ ts     │
-├─────────────┼───────┼──────┼────────┤
-│ i_xxx_abc   │ image │ ...  │ 时间戳  │
-│ v_xxx_def   │ video │ ...  │ 时间戳  │
-└─────────────┴───────┴──────┴────────┘
-```
-
-代码里封装成一个 `HistoryDB` 对象，提供 4 个方法：
-
-```javascript
-HistoryDB.add(record)   // 加一条
-HistoryDB.list()        // 列出所有
-HistoryDB.remove(id)    // 删一条
-HistoryDB.clear()       // 全清
-```
-
-**IndexedDB 的回调写法很啰嗦**（要 `onsuccess`、`onerror`），所以代码把它包成了 Promise，调用时直接 `await` 就行。这是处理"老 API"的常见技巧。
-
-### 4.7 国际化（中英文切换）
-
-**思路**：所有文字写成 key，渲染时根据当前语言查字典。
-
-```javascript
-const I18N = {
-  zh: { 'btn.gen.image': '生成图像', 'btn.download': '下载', ... },
-  en: { 'btn.gen.image': 'Generate',  'btn.download': 'Download', ... }
-};
-
-function t(key) {
-  return I18N[currentLang][key];
-}
-```
-
-HTML 元素上加 `data-i18n="btn.download"`，切换语言时遍历所有这种元素：
-
-```javascript
-document.querySelectorAll('[data-i18n]').forEach(el => {
-  el.textContent = t(el.getAttribute('data-i18n'));
-});
-```
-
-### 4.8 日志抽屉（右侧滑出）
-
-每次发请求/收响应都调 `addLog()` 记一条。
-
-**抽屉的"滑出"效果**靠 CSS transform：
-
-```css
-.drawer {
-  transform: translateX(100%);              /* 默认推到屏幕外 */
-  transition: transform .28s var(--ease-out);
-}
-.drawer.open {
-  transform: translateX(0);                 /* 加 open 类就滑回来 */
-}
-```
-
-JS 只需要给元素加/删 `open` 类，CSS 自动播放动画。
+本项目面向开发者和创作者，无需搭建任何后端服务，只需在浏览器中打开即可使用。
 
 ---
 
-## 五、关键设计思想（这些是通用知识）
+## 核心特性
 
-### 5.1 状态机思维
+| 特性 | 说明 |
+|------|------|
+| 🖼️ **图像生成** | 支持 GPT Image 2、DALL·E、Flux 及 Gemini 等模型 |
+| ✏️ **图像编辑** | 上传源图与遮罩，进行局部重绘编辑 |
+| 🎬 **视频生成** | 集成 Seedance 2.0 视频生成接口 |
+|  **多区域节点** | 国内、海外（洛杉矶）、Gemini 原生三种节点可选 |
+| 🌐 **双语界面** | 一键切换 中文 / English |
+| 🗂️ **形态变体** | 批量生成多个姿态/场景变体，支持并发请求 |
+| 🔲 **宫格切分** | 将大图按 2×2 或 3×3 切分为子图 |
+| 💾 **本地收藏** | 基于 IndexedDB 的历史记录与收藏管理 |
+| 📜 **请求日志** | 可折叠的右侧日志抽屉，记录所有 API 请求与响应 |
+| 🖼️ **参考图上传** | 支持内容参考、色板参考两类参考图 |
+| ⌨️ **快捷键支持** | `⌘/Ctrl + L` 快速打开日志 |
 
-每个功能区都有几种**状态**，UI 跟着状态变：
+---
 
-| 状态 | 显示什么 |
-|---|---|
-| 初始 | 占位符（"结果将显示在这里"） |
-| 生成中 | 旋转图标 + 进度 `3/8` |
-| 完成 | 画廊 + 下载按钮 |
-| 失败 | 红色错误条 |
+## 快速开始
 
-代码里通过 `style.display` 控制不同元素的显隐来实现状态切换。
+### 1. 获取代码
 
-### 5.2 不污染全局
-
-JS 用 `let` / `const` 替代 `var`，并用立即执行函数（IIFE）封装：
-
-```javascript
-const HistoryDB = (() => {
-  let _db = null;       // 私有变量，外界看不到
-  return {
-    add(...) { ... },
-    list(...) { ... }
-  };
-})();
+```bash
+git clone https://github.com/JING958/ai-studio.git
+cd ai-studio
 ```
 
-外界只能用 `HistoryDB.add()`，碰不到 `_db`。这就是 JS 里实现"私有变量"的经典手段。
+### 2. 直接打开
 
-### 5.3 错误降级
+```bash
+# 方式一：直接双击打开
+ai-studio-UC.html
 
-API key 没填、网络断了、模型挂了——任何一步都可能失败。代码里全是 `try/catch`：
-
-```javascript
-try {
-  const data = await ...;
-} catch (e) {
-  setStatus('错误: ' + e.message, 'error');
-}
+# 方式二：使用本地服务器（推荐，避免跨域限制）
+npx serve .
+# 或
+python -m http.server 8080
 ```
 
-并且失败时让 UI 显示明确的红色提示，而不是悄悄出错。
+> ⚠️ **注意**：由于浏览器安全策略，建议通过本地 HTTP 服务器打开，以确保图片下载、视频播放等功能正常工作。
 
-### 5.4 内存清理
+### 3. 配置 API
 
-生成的图片是 Blob URL（`blob:http://...`），不主动释放会一直占内存。所以重新生成前会：
+在界面左侧边栏中填入：
+- **API 地址**：你的图像/视频生成服务地址
+- **API Key**：你的认证密钥（Bearer Token）
+- **模型**：如 `gpt-image-2`、`doubao-seedance-2-0-260128` 等
 
-```javascript
-imgResults.forEach(r => {
-  if (r.isBlob) URL.revokeObjectURL(r.url);
-});
+---
+
+## 功能详解
+
+### 图像生成
+
+1. 在 **Prompt** 输入框中描述你想要生成的图像
+2. （可选）在 **形态变体** 中输入多个变体描述，每行一个
+   - 支持 `{变体}` / `{variant}` 占位符替换
+   - 逗号在同一行内不会分割变体
+3. 选择 **尺寸**、**质量**、**格式**、**每变体张数**
+4. （可选）上传 **参考图**（内容参考 / 色板参考）
+5. 点击 **生成图像** 按钮
+
+**高级选项：**
+- **单角色独立形态**：自动追加提示词，强制单图单姿态，避免多宫格
+
+### 图像编辑
+
+切换到 **编辑** 模式：
+1. 上传 **源图**（必填）
+2. （可选）上传 **遮罩图**（透明区域为编辑区）
+3. 输入编辑提示词
+4. 点击生成
+
+### 视频生成
+
+切换到 **视频生成** 标签：
+1. 配置提交地址与状态地址
+2. 输入文本 Prompt（支持中英文，建议不超过 500 字）
+3. （可选）上传首帧/尾帧图片、参考视频/音频 URL
+4. 选择分辨率、时长、宽高比、是否生成音频等参数
+5. 点击 **提交生成任务**，系统将自动轮询任务状态
+
+### 切分工具
+
+对生成的图片进行宫格切分：
+1. 点击顶部 **切分工具** 标签
+2. 选择来源图片（当前生成或历史收藏）
+3. 选择输出尺寸：**等分**（每张为原图 1/N）或 **原图**（每张保持原图分辨率）
+4. 点击 **2×2** 或 **3×3** 进行切分
+5. 支持单张下载或收藏到历史
+
+---
+
+## 多区域节点支持
+
+| 节点 | 说明 | 适用模型 |
+|------|------|----------|
+| 🇨🇳 **国内** | 中国大陆节点 | GPT Image、DALL·E、Flux |
+| 🇺🇸 **海外** | 美国洛杉矶节点，访问更快，数据不回国 | GPT Image、DALL·E、Flux |
+| 💎 **Gemini** | Google Gemini 原生图像生成 | Gemini Pro Image |
+
+节点切换后会自动更新对应的 API 地址和默认模型。
+
+---
+
+## 本地存储
+
+所有数据均存储在浏览器本地，不上传至任何服务器：
+
+- **历史收藏**：使用 IndexedDB（`ai-studio` 数据库）存储图片和视频 Blob
+- **界面状态**：使用 `localStorage` 保存语言设置、区域节点、历史面板展开状态等
+- **API 配置**：当前未持久化，建议自行保存密钥（出于安全考虑）
+
+---
+
+## 技术实现
+
+### 技术栈
+
+- **HTML5**：语义化标签与结构化布局
+- **CSS3**：CSS 变量主题、Grid / Flexbox 布局、过渡动画
+- **Vanilla JavaScript**：无框架依赖，原生 DOM 操作
+- **IndexedDB**：本地数据库用于历史收藏
+
+### 架构设计
+
+```
+ai-studio-UC.html
+├── 样式层（CSS Variables + Grid Layout）
+│   ├── 暗色主题设计系统
+│   └── 响应式断点支持
+├── 结构层（HTML Semantics）
+│   ├── Topbar（标签切换、区域选择）
+│   ├── Sidebar（参数配置面板）
+│   ├── Main（预览区域 + 历史面板）
+│   └── Drawer（日志抽屉）
+├── 交互层（JavaScript Modules）
+│   ├── I18N（中英双语）
+│   ├── Region（多节点管理）
+│   ├── Image Mode（图像生成/编辑）
+│   ├── Video Mode（视频生成/轮询）
+│   ├── History（IndexedDB 收藏）
+│   ├── Logs（请求日志记录）
+│   └── Split Tool（宫格切分）
+└── 数据层（Browser APIs）
+    ├── Fetch API（HTTP 请求）
+    ├── IndexedDB（本地存储）
+    └── FileReader（图片预览）
 ```
 
-新增生成图片宫格切分功能[Canvas 切分原理]
+### 关键设计
 
-```javascript
-async function doSplitPanel(n) {           // n = 2（2×2）或 3（3×3）
-  // 1. 把图片 URL 加载成 HTMLImageElement（浏览器可以操作的图片对象）
-  const srcImg = await new Promise((res, rej) => {
-    const im = new Image();
-    im.onload = () => res(im);             // 加载完成才继续
-    im.onerror = rej;
-    im.src = _splitSrcUrl;
-  });
+- **单文件架构**：所有代码（HTML/CSS/JS）内联在一个文件中，无需构建工具，直接部署
+- **并发控制**：图像生成使用 `MAX_CONCURRENCY = 6` 限制并发请求数
+- **轮询机制**：视频生成采用定时轮询（每 5 秒）查询任务状态
+- **Blob URL 管理**：生成结果使用 `URL.createObjectURL()` 创建临时链接，切换时自动 `revokeObjectURL`
 
-  // 2. 计算每格宽高（整除，余数直接丢掉——1-2px 偏差肉眼看不出）
-  const cw = Math.floor(srcImg.naturalWidth  / n);
-  const ch = Math.floor(srcImg.naturalHeight / n);
+---
 
-  // 3. 双层循环：行 r × 列 c，遍历每个格子
-  for (let r = 0; r < n; r++) {
-    for (let c = 0; c < n; c++) {
+## 文件结构
 
-      // 4. 创建一块空画布，尺寸等于单格大小
-      const cv = document.createElement('canvas');
-      cv.width = cw;
-      cv.height = ch;
-
-      // 5. drawImage 的完整参数：
-      //    源图、从源图的(x,y)开始、截取(宽,高)、画到画布的(0,0)、画出(宽,高)
-      cv.getContext('2d').drawImage(
-        srcImg,          // 源图
-        c * cw, r * ch,  // 从源图的哪个坐标开始截
-        cw,     ch,      // 截多大
-        0,      0,       // 画到画布的哪个位置
-        cw,     ch       // 画多大
-      );
-
-      // 6. 把画布内容导出为 PNG Blob（二进制数据）
-      const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
-
-      // 7. 生成临时 URL，就能像普通图片一样显示和下载了
-      const url = URL.createObjectURL(blob);
-    }
-  }
-}
+```
+.
+├── ai-studio-UC.html          # 主程序文件（单文件应用）
+├── README.md                   # 本白皮书
+├── 宫格切分功能-实现文档.md     # 宫格切分功能详细文档
+├── 形态变体功能-使用指南.md     # 形态变体功能使用指南
+├── 网页实现-学习文档.md         # 前端实现学习笔记
+├── api.md                      # API 接口文档
+├── doubao-seedance-2-0.md      # Seedance 视频生成文档
+├── gpt-image-2 API.md          # GPT Image 2 API 文档
+└── ...                         # 其他辅助文档
 ```
 
+---
 
+## 使用示例
+
+### 图像生成示例
+
+**Prompt**: `a beautiful flower`
+
+**形态变体**：
+```
+standing in a sunlit garden, full body
+running on a beach at sunset, dynamic pose
+sitting by a window reading, half body
+```
+
+**配置**：
+- 尺寸：1024×1024
+- 质量：高
+- 格式：PNG
+- 每变体张数：2
+
+**结果**：将生成 6 张图片（3 个变体 × 2 张），展示不同姿态下的花朵。
+
+### 视频生成示例
+
+**Prompt**: `A cat playing with a ball of yarn in a cozy living room`
+
+**配置**：
+- 分辨率：720p
+- 时长：5s
+- 宽高比：16:9 横屏
+- 音频：有声
+
+---
+
+## 常见问题
+
+### Q: 为什么图片下载失败？
+A: 请确保通过本地 HTTP 服务器打开页面，而非直接双击打开文件。浏览器安全策略会阻止 `file://` 协议下的某些操作。
+
+### Q: 支持哪些图像模型？
+A: 目前支持 `gpt-image-2`、`gpt-image-1`、`dall-e-3`、`dall-e-2`、`flux-pro`、`flux-dev`、`gemini-3-pro-image-preview`、`gemini-2.5-flash-image` 等。
+
+### Q: 视频生成一直显示“轮询中”？
+A: 请检查：
+1. API Key 是否正确
+2. 提交地址和状态地址是否匹配
+3. 网络连接是否正常
+4. 查看右侧日志抽屉获取详细错误信息
+
+### Q: 历史收藏会占用多少空间？
+A: 取决于 IndexedDB 的存储配额，通常浏览器允许每个域名存储数百 MB。可以在历史面板底部查看当前已用空间。
+
+### Q: 如何清除所有数据？
+A: 点击历史面板右上角的 **清空** 按钮，或在浏览器设置中清除 `ai-studio` 的 IndexedDB 数据。
+
+---
+
+## 许可协议
+
+本项目采用 [MIT License](LICENSE) 开源协议。
+
+---
+
+<p align="center">
+  Made with ️ by <a href="https://github.com/JING958">JING958</a>
+</p>
